@@ -20,7 +20,7 @@ CONSTITUENTS_HTML = """
 """
 
 
-class FetchSp500SymbolsTests(unittest.TestCase):
+class Sp500Tests(unittest.TestCase):
     @patch("sources.universe.sp500.requests.get")
     def test_returns_symbols_from_the_sp500_constituents_table(
         self, get: Mock
