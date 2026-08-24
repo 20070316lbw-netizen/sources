@@ -1,0 +1,25 @@
+[project]
+name = "sources"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "edgartools>=5.52.0",
+    "loguru>=0.7.3",
+    "lxml>=6.1.2",
+    "numpy>=2.5.2",
+    "pandas>=3.0.5",
+    "pyarrow>=25.0.1",
+    "pyyaml>=6.0.3",
+    "requests>=2.34.2",
+    "rich>=15.0.0",
+    "yfinance>=1.6.0",
+]
+
+[project.scripts]
+sources = "sources:main"
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"
