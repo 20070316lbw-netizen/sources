@@ -20,11 +20,15 @@ class PgsqlError(QuantLabError):
 class EdgarFetchError(DataFetchError):
     """EDGAR 数据抓取相关的错误。"""
 
-    def __init__(self, cik: str, status_code: int) -> None:
-        self.cik = cik
-        self.status_code = status_code
-
-        super().__init__(f"CIK {cik} 抓取失败, 状态码 {status_code}")
+    def __init__(self, message_or_cik: str = "", status_code: int | None = None) -> None:
+        if status_code is not None:
+            self.cik = message_or_cik
+            self.status_code = status_code
+            super().__init__(f"CIK {message_or_cik} 抓取失败, 状态码 {status_code}")
+        else:
+            self.cik = ""
+            self.status_code = None
+            super().__init__(message_or_cik)
 
 
 class YahooFetchError(DataFetchError):
@@ -34,7 +38,7 @@ class YahooFetchError(DataFetchError):
 class WikiFetchError(DataFetchError):
     """Wiki 数据抓取相关错误。"""
 # ---------------------------------------------------------- 
-# 数据库相关
+# 数据库与存储相关
 class SchemaInitializationError(PgsqlError):
     """数据库 schema 初始化失败。"""
 
@@ -45,6 +49,11 @@ class UniverseLoadError(PgsqlError):
 
 class YahooLoadError(PgsqlError):
     """Yahoo 数据入库时失败"""
+
+
+class EdgarLoadError(PgsqlError):
+    """EDGAR 数据入库或读取时失败"""
+
 
         
 
