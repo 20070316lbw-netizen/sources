@@ -60,16 +60,6 @@ class SP500UniverseMember(BaseModel):
         return v
 
 
-    @field_validator("cik")
-    @classmethod
-    def _validate_cik_format(cls, v: str) -> str:
-        """确保 CIK 是 10 位数字。"""
-        if not (v.isdigit() and len(v) == 10):
-            raise ValueError("CIK 必须是 10 位数字")
-
-        return v
-
-
     @field_validator("company_name")
     @classmethod
     def _not_blank(cls, v: str) -> str:
