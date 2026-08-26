@@ -8,16 +8,40 @@ from typing import Sequence
 import pandas as pd
 from edgar import Company, set_identity
 from loguru import logger
+from pandas.tseries.holiday import USFederalHolidayCalendar
+from pandas.tseries.offsets import CustomBusinessDay
 
-from sources.config import SEC_IDENTITY
+from sources.config import SEC_CACHE_DIR, SEC_IDENTITY
 from sources.error import EdgarFetchError
 from sources.universe.fetch import load_cached_universe
+from sources.universe.load import load_sp500_list
+
+# 用美国联邦假期日历近似交易日历, 比纯粹的 "工作日" (freq='B') 更接近真实开市日
+# 注意: 联邦假期和 NYSE 休市日并不完全重合 (如哥伦布日/退伍军人节 NYSE 照常开市,
+# 感恩节次日 NYSE 提前休市但不算全天休市), 如需精确对齐建议直接传入行情数据的
+# 真实交易日索引 (trading_days 参数), 而不是依赖这里的近似日历。
+_US_TRADING_CALENDAR = CustomBusinessDay(calendar=USFederalHolidayCalendar())
+
+# fetch_sec() 默认落盘路径
+_DEFAULT_SP500_FUNDAMENTALS_PATH = SEC_CACHE_DIR / "sp500_fundamentals_daily.parquet"
+
+
+
+_edgar_initialized_identity: str | None = None
 
 
 def init_edgar(identity: str | None = None) -> None:
-    """初始化 SEC EDGAR 请求身份标识 (User-Agent)。"""
+    """初始化 SEC EDGAR 请求身份标识 (User-Agent)。
+
+    同一身份重复调用是幂等的 (不会重复 set_identity / 重复打日志), 这样
+    fetch_filing_metrics 在批量抓取时每只标的调一次也不会刷屏或做无谓的重复设置。
+    """
+    global _edgar_initialized_identity
     sec_id = identity or SEC_IDENTITY
+    if _edgar_initialized_identity == sec_id:
+        return
     set_identity(sec_id)
+    _edgar_initialized_identity = sec_id
     logger.debug(f"已初始化 SEC EDGAR 身份标识: {sec_id}")
 
 
@@ -122,6 +146,10 @@ def to_daily_pit(
     1. 以财报实际向 SEC 披露的日期 (date / filing_date) 作为生效生效起点;
     2. 使用 pandas 现成的 unstack -> reindex -> ffill -> stack 流水线，在新财报披露前自动沿用上期数据；
     3. 输出 MultiIndex 为 ['Date', 'Ticker']，列名统一为小写，与 Yahoo 价格数据结构无缝拼接。
+
+    注意: 若不传入 trading_days, 默认用美国联邦假期日历近似真实交易日, 仍可能与
+    NYSE 实际开市日存在个别偏差。若需要与 fetch_prices 抓到的行情数据严格对齐,
+    推荐直接把该行情数据的日期索引作为 trading_days 传入。
     """
     if df_fundamentals.empty:
         raise ValueError("输入的基本面数据为空")
@@ -143,12 +171,12 @@ def to_daily_pit(
     if trading_days is not None:
         calendar = pd.DatetimeIndex(trading_days) # type: ignore
     elif start is not None and end is not None:
-        calendar = pd.date_range(start=start, end=end, freq="B")
+        calendar = pd.date_range(start=start, end=end, freq=_US_TRADING_CALENDAR)
     else:
         calendar = pd.date_range(
             start=df_metrics["date"].min(),
             end=df_metrics["date"].max(),
-            freq="B",
+            freq=_US_TRADING_CALENDAR,
         )
 
     # 借助 pandas unstack -> reindex -> ffill -> stack 现成机制完成日频 PIT 处理
@@ -174,3 +202,44 @@ def save_fundamentals(
     path_obj = Path(path)
     path_obj.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path_obj)
+
+
+def fetch_sec(
+    *,
+    forms: Sequence[str] = ("10-K", "10-Q"),
+    limit: int = 8,
+    start: str | pd.Timestamp | None = None,
+    end: str | pd.Timestamp | None = None,
+    trading_days: pd.DatetimeIndex | Sequence[pd.Timestamp] | None = None,
+    save_path: Path | str | None = _DEFAULT_SP500_FUNDAMENTALS_PATH,
+) -> pd.DataFrame:
+    """一次性抓取全量 S&P 500 成分股的基本面数据, 并组装成日频 PIT 数据。
+
+    把 universe (标的列表) -> fetch_sp500_fundamentals (批量抓取财报指标)
+    -> to_daily_pit (日频 PIT 对齐) -> save_fundamentals (可选落盘) 串联起来的总入口。
+
+    Args:
+        forms: 抓取的财报类型, 默认 ('10-K', '10-Q')。
+        limit: 每只标的抓取的最新期数。
+        start / end: 传给 to_daily_pit 的日历起止日期; 都不传则用财报数据自身的日期跨度。
+        trading_days: 若已有真实交易日索引 (如 fetch_prices 抓到的行情日期), 优先传入以精确对齐。
+        save_path: 结果落盘路径, 默认存到 SEC_CACHE_DIR 下; 传 None 则不落盘。
+
+    Returns:
+        pd.DataFrame: MultiIndex 为 ['Date', 'Ticker'] 的全量 S&P 500 日频 PIT 基本面数据。
+    """
+    tickers = load_sp500_list()
+    logger.info(f"从 universe 模块取得 {len(tickers)} 个 S&P 500 标的, 开始批量抓取基本面数据...")
+
+    raw_fundamentals = fetch_sp500_fundamentals(symbols=tickers, forms=forms, limit=limit)
+
+    daily_pit = to_daily_pit(raw_fundamentals, start=start, end=end, trading_days=trading_days)
+
+    if save_path is not None:
+        save_fundamentals(daily_pit, path=save_path)
+        logger.success(f"全量 S&P 500 基本面 PIT 数据已保存至 {save_path}")
+
+    return daily_pit
+
+if __name__ == "__main__":
+    fetch_sec()

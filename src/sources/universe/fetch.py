@@ -9,8 +9,8 @@ import requests
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from sources.config import SP500_CACHE_PATH
-from sources.error import WikiFetchError
+from sources.config import SEC_IDENTITY, SP500_CACHE_PATH
+from sources.error import EdgarFetchError, WikiFetchError
 
 _WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
@@ -21,7 +21,7 @@ _BROWSER_UA = (
 )
 
 _SEC_CIK_URL = "https://www.sec.gov/files/company_tickers.json"
-_SEC_HEADERS = {"User-Agent": "liu 20070316lbw@gmail.com"}
+_SEC_HEADERS = {"User-Agent": SEC_IDENTITY}
 _MIN_EXPECTED_UNIVERSE_SIZE = 400
 _MAX_EXPECTED_UNIVERSE_SIZE = 600
 
@@ -171,7 +171,7 @@ def validate_cik_against_sec(universe: pd.DataFrame) -> set[str]:
         )
         response.raise_for_status()
     except requests.RequestException as exc:
-        raise WikiFetchError(f"SEC CIK 注册库请求失败: {exc}") from exc
+        raise EdgarFetchError(f"SEC CIK 注册库请求失败: {exc}") from exc
 
     sec_valid_ciks = {
         str(value["cik_str"]).zfill(10)

@@ -54,6 +54,10 @@ class YahooLoadError(PgsqlError):
 class EdgarLoadError(PgsqlError):
     """EDGAR 数据入库或读取时失败"""
 
+# ---------------------------------------------------------- 
+# 杂项
+
+
 
         
 
