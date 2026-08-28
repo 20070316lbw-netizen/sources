@@ -69,8 +69,18 @@ class SP500UniverseMember(BaseModel):
         return normalized
 
 
-def fetch_sp500_universe() -> list[SP500UniverseMember]:
+def fetch_sp500_universe(
+    *,
+    timeout: float = 10,
+    min_expected_size: int = _MIN_EXPECTED_UNIVERSE_SIZE,
+    max_expected_size: int = _MAX_EXPECTED_UNIVERSE_SIZE,
+) -> list[SP500UniverseMember]:
     """从维基百科抓取当前 S&P 500 成分股列表, 逐条校验后返回。
+
+    Args:
+        timeout: 请求维基百科页面的超时时间 (秒)。
+        min_expected_size: 校验通过的成分股数量下限, 用于识别页面结构异常。
+        max_expected_size: 校验通过的成分股数量上限, 用于识别页面结构异常。
 
     Returns:
         list[SP500UniverseMember]: 校验通过的成分股列表。
@@ -80,9 +90,9 @@ def fetch_sp500_universe() -> list[SP500UniverseMember]:
     """
     try:
         resp = requests.get(
-            _WIKI_URL, 
+            _WIKI_URL,
             headers = {"User-Agent": _BROWSER_UA},
-            timeout = 10,
+            timeout = timeout,
         )
         resp.raise_for_status()
     except requests.RequestException as exc:
@@ -123,14 +133,14 @@ def fetch_sp500_universe() -> list[SP500UniverseMember]:
         raise WikiFetchError("解析出的成分股列表为空, 页面结构可能变化")
     
     if not (
-        _MIN_EXPECTED_UNIVERSE_SIZE
+        min_expected_size
         <= len(universe)
-        <= _MAX_EXPECTED_UNIVERSE_SIZE
+        <= max_expected_size
     ):
         raise WikiFetchError(
             f"成分股数量异常: {len(universe)},"
-            f"预期范围 {_MIN_EXPECTED_UNIVERSE_SIZE}"
-            f"~{_MAX_EXPECTED_UNIVERSE_SIZE}"
+            f"预期范围 {min_expected_size}"
+            f"~{max_expected_size}"
         )
 
     logger.info(f"成功抓取并且校验 {len(universe)} 条 S&P 成分股")
@@ -150,14 +160,19 @@ def load_cached_universe() -> pd.DataFrame:
     return universe
 
 
-def validate_cik_against_sec(universe: pd.DataFrame) -> set[str]:
-    """用 SEC 官方注册库手动交叉检查 universe 中的 CIK。"""
+def validate_cik_against_sec(universe: pd.DataFrame, *, timeout: float = 30) -> set[str]:
+    """用 SEC 官方注册库手动交叉检查 universe 中的 CIK。
+
+    Args:
+        universe: 待校验的 universe DataFrame, 需包含 cik 列。
+        timeout: 请求 SEC CIK 注册库的超时时间 (秒)。
+    """
     logger.info("正在拉取 SEC 官方 CIK 注册库做交叉校验 ...")
     try:
         response = requests.get(
             _SEC_CIK_URL,
             headers=_SEC_HEADERS,
-            timeout=30,
+            timeout=timeout,
         )
         response.raise_for_status()
     except requests.RequestException as exc:

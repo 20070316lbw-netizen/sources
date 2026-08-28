@@ -21,8 +21,12 @@ def fetch_prices(
     threads: bool = False,
     pause: float = 1.0,
     max_missing_ratio: float = 0.2,
+    auto_adjust: bool = False,
 ) -> pd.DataFrame:
     """抓取价格数据, 返回整理成长表格式的 df (MultiIndex: Date, Ticker)
+
+    auto_adjust 控制是否用 yfinance 复权后的价格覆盖原始收盘价 (默认 False, 保留原始价格
+    与单独的 adj close 列)。
 
     分批 (batch_size) 顺序抓取, 而不是一次性对全部 ticker 发起大并发请求:
     yfinance 内部用一个共享的本地 sqlite 文件 (~/Library/Caches/py-yfinance/tkr-tz.db)
@@ -41,7 +45,7 @@ def fetch_prices(
 
         try:
             price = yf.download(
-                tickers=batch, start=start, end=end, auto_adjust=False, threads=threads
+                tickers=batch, start=start, end=end, auto_adjust=auto_adjust, threads=threads
             )
         except Exception as exc:
             raise YahooFetchError(f"yfinance 抓取过程中发生异常 (batch {i}): {exc}") from exc
