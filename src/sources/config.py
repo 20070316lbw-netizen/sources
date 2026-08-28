@@ -6,7 +6,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 PROJECT_ROOT        = Path(__file__).resolve().parent.parent.parent
-PACKAGE_ROOT        = Path(__file__).resolve().parent.parent
 DATA_DIR            = PROJECT_ROOT / "data"
 SP500_CACHE_PATH    = DATA_DIR / "sp500_ticker.csv"
 YAHOO_CACHE_PATH    = DATA_DIR / "sp500.parquet"

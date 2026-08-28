@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from sources.config import DATA_DIR, SP500_CACHE_PATH, PROJECT_ROOT
+from sources.config import DATA_DIR, SP500_CACHE_PATH
 from sources.error import (
     DataFetchError,
     EdgarFetchError,
