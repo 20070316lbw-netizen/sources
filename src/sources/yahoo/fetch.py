@@ -90,14 +90,20 @@ def fetch_prices(
 def save_prices(
     df: pd.DataFrame,
     *,
-    path: Path | str,
+    path: Path | str = "data/sp500.parquet",
 ) -> None:
+    """保存价格数据为 Parquet 文件。
+
+    Args:
+        path: 落盘路径。默认 "data/sp500.parquet" ——
+            相对路径以调用方当前工作目录 (通常就是调用方项目根目录) 为起点。
+    """
     path_obj = Path(path)
     path_obj.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path_obj)
 
 
 if __name__ == "__main__":
-    tickers = load_sp500_list(path="data/sp500_ticker.csv")
+    tickers = load_sp500_list()
     df = fetch_prices(symbols=tickers, start="2020-01-01", end="2026-08-20")
-    save_prices(df, path="data/sp500.parquet")
+    save_prices(df)

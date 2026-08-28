@@ -149,11 +149,12 @@ def fetch_sp500_universe(
     return universe
 
 
-def load_cached_universe(*, path: Path | str) -> pd.DataFrame:
+def load_cached_universe(*, path: Path | str = "data/sp500_ticker.csv") -> pd.DataFrame:
     """读取本地 universe CSV, 同时保留 CIK 的前导零。
 
     Args:
-        path: universe 缓存 CSV 的路径, 需由调用方显式指定。
+        path: universe 缓存 CSV 的路径。默认 "data/sp500_ticker.csv" ——
+            相对路径以调用方当前工作目录 (通常就是调用方项目根目录) 为起点。
     """
     path_obj = Path(path)
     if not path_obj.exists():

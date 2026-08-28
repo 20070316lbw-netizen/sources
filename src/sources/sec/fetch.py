@@ -6,12 +6,8 @@
 from sources.universe.load import load_sp500_list
 from sources.sec.fetch import fetch_sec
 
-symbols = load_sp500_list(path="data/sp500_ticker.csv")
-daily_pit = fetch_sec(
-    symbols=symbols,
-    limit=8,  # 每只标的最新 8 期 10-K/10-Q
-    save_path="data/sec/sp500_fundamentals_daily.parquet",  # 传 None 则不落盘
-)
+symbols = load_sp500_list()  # 默认读/写 data/sp500_ticker.csv (相对调用方项目根目录)
+daily_pit = fetch_sec(symbols=symbols, limit=8)  # 默认落盘到 data/sec/sp500_fundamentals_daily.parquet
 ```
 """
 
@@ -203,9 +199,14 @@ def to_daily_pit(
 def save_fundamentals(
     df: pd.DataFrame,
     *,
-    path: Path | str,
+    path: Path | str = "data/sec/sp500_fundamentals_daily.parquet",
 ) -> None:
-    """将基本面数据保存为 Parquet 文件。"""
+    """将基本面数据保存为 Parquet 文件。
+
+    Args:
+        path: 落盘路径。默认 "data/sec/sp500_fundamentals_daily.parquet" ——
+            相对路径以调用方当前工作目录 (通常就是调用方项目根目录) 为起点。
+    """
     path_obj = Path(path)
     path_obj.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path_obj)
@@ -219,7 +220,7 @@ def fetch_sec(
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
     trading_days: pd.DatetimeIndex | Sequence[pd.Timestamp] | None = None,
-    save_path: Path | str | None,
+    save_path: Path | str | None = "data/sec/sp500_fundamentals_daily.parquet",
 ) -> pd.DataFrame:
     """抓取给定标的列表的基本面数据, 并组装成日频 PIT 数据。
 
@@ -233,7 +234,8 @@ def fetch_sec(
         limit: 每只标的抓取的最新期数。
         start / end: 传给 to_daily_pit 的日历起止日期; 都不传则用财报数据自身的日期跨度。
         trading_days: 若已有真实交易日索引 (如 fetch_prices 抓到的行情日期), 优先传入以精确对齐。
-        save_path: 结果落盘路径, 需由调用方显式指定; 传 None 表示不落盘。
+        save_path: 结果落盘路径。默认 "data/sec/sp500_fundamentals_daily.parquet"
+            (相对路径以调用方当前工作目录为起点); 传 None 表示不落盘。
 
     Returns:
         pd.DataFrame: MultiIndex 为 ['Date', 'Ticker'] 的日频 PIT 基本面数据。
@@ -253,5 +255,5 @@ def fetch_sec(
 if __name__ == "__main__":
     from sources.universe.load import load_sp500_list
 
-    tickers = load_sp500_list(path="data/sp500_ticker.csv")
-    fetch_sec(symbols=tickers, save_path="data/sec/sp500_fundamentals_daily.parquet")
+    tickers = load_sp500_list()
+    fetch_sec(symbols=tickers)

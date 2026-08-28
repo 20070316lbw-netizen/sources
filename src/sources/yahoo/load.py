@@ -5,8 +5,13 @@ import pandas as pd
 from loguru import logger
 
 
-def load_prices(*, path: Path | str) -> pd.DataFrame:
-    """从本地读取价格数据, MultiIndex 和 dtype 都会自动还原"""
+def load_prices(*, path: Path | str = "data/sp500.parquet") -> pd.DataFrame:
+    """从本地读取价格数据, MultiIndex 和 dtype 都会自动还原
+
+    Args:
+        path: Parquet 文件路径。默认 "data/sp500.parquet" ——
+            相对路径以调用方当前工作目录 (通常就是调用方项目根目录) 为起点。
+    """
     path_obj = Path(path)
     if not path_obj.exists():
         raise FileNotFoundError(
@@ -16,5 +21,5 @@ def load_prices(*, path: Path | str) -> pd.DataFrame:
     return pd.read_parquet(path_obj)
 
 if __name__ == "__main__":
-    df = load_prices(path="data/sp500.parquet")
+    df = load_prices()
     print(df)

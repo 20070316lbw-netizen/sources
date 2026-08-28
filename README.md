@@ -51,4 +51,4 @@ from sources.error import QuantLabError, DataFetchError, YahooFetchError, EdgarF
 
 注意：使用 `sources.sec` 模块前需要按 `.env.example` 的说明配置 `SEC_IDENTITY`（SEC EDGAR 要求 User-Agent 携带真实姓名与邮箱），否则请求可能被拒绝。
 
-**关于路径**：本包不预设任何数据/缓存目录（`sources.config` 里不再有基于包自身安装位置派生的路径）——原因是一旦作为 git 依赖被其他项目安装，包文件所在位置和调用方项目目录是两回事，包内写死的路径在调用方那边毫无意义。所以凡是涉及文件读写的函数（`load_cached_universe` / `load_sp500_list` / `save_prices` / `load_prices` / `save_fundamentals` / `load_fundamentals` / `fetch_sec` 的 `save_path` 等）都要求调用方显式传入 `path` 参数，没有默认值，由使用方决定数据存放在自己项目的哪个位置。
+**关于路径**：`sources.config` 里不再有基于包自身安装位置 (`Path(__file__)`) 派生的路径——一旦作为 git 依赖被其他项目安装，包文件所在位置和调用方项目目录是两回事，用包安装位置拼出来的路径在调用方那边毫无意义。所有涉及文件读写的函数（`load_cached_universe` / `load_sp500_list` / `save_prices` / `load_prices` / `save_fundamentals` / `load_fundamentals` / `fetch_sec` 的 `save_path` 等）的 `path` 参数都是**相对路径**，默认值形如 `"data/sp500_ticker.csv"`——按 Python 的一般约定，相对路径以调用方进程的当前工作目录为起点，也就是调用方项目自己在 `data/` 下的缓存位置（前提是像 `uv run python xxx.py` 这样从项目根目录运行）。不想用默认位置的话，随时可以传入自己的 `path=...` 覆盖。
