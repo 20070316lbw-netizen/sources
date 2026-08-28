@@ -17,3 +17,6 @@ wheels/
 # data/ 下都是可重新抓取生成的缓存数据, clone 后按需重新跑 fetch 生成即可
 data/*
 !data/.gitkeep
+
+# Pytest cache
+.pytest_cache/

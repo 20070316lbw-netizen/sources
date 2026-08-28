@@ -1,4 +1,13 @@
-"""SEC EDGAR 基本面数据抓取与 PIT 日频处理模块 (基于 edgartools)"""
+"""SEC EDGAR 基本面数据抓取与 PIT 日频处理模块 (基于 edgartools)
+
+核心调用方法:
+
+```python
+from sources.sec import fetch_sec
+
+daily_pit = fetch_sec(limit=8)  # 默认抓 10-K/10-Q, 每只标的最新 8 期, 结果自动落盘
+```
+"""
 
 from __future__ import annotations
 

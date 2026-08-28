@@ -1,0 +1,38 @@
+name: CI
+
+# 触发条件 (Triggers)
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # 允许在 GitHub 网页 Actions 标签页手动点击运行
+
+# 基础权限
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 下载仓库代码到 Runner 虚拟机
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 安装 uv 及 Python 运行环境 (开启缓存以大幅加快执行速度)
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      # 3. 同步安装依赖 (包括 pyproject.toml 里的 dev 依赖 pytest)
+      - name: Install dependencies
+        run: uv sync
+
+      # 4. 执行自动化测试
+      - name: Run pytest
+        run: uv run pytest -v

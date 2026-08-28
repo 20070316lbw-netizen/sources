@@ -9,6 +9,7 @@ PROJECT_ROOT        = Path(__file__).resolve().parent.parent.parent
 PACKAGE_ROOT        = Path(__file__).resolve().parent.parent
 DATA_DIR            = PROJECT_ROOT / "data"
 SP500_CACHE_PATH    = DATA_DIR / "sp500_ticker.csv"
+YAHOO_CACHE_PATH    = DATA_DIR / "sp500.parquet"
 SEC_CACHE_DIR       = DATA_DIR / "sec"
 
 # 从项目根目录的 .env 读取本地身份信息 (.env 已 gitignore, 不会被提交)
