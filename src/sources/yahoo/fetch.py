@@ -14,7 +14,7 @@ from sources.config import YAHOO_CACHE_PATH
 
 def fetch_prices(
     *,
-    symbol: list[str],
+    symbols: list[str],
     start: str | pd.Timestamp,
     end: str | pd.Timestamp,
     batch_size: int = 50,
@@ -35,8 +35,8 @@ def fetch_prices(
     """
     frames: list[pd.DataFrame] = []
 
-    for i in range(0, len(symbol), batch_size):
-        batch = symbol[i : i + batch_size]
+    for i in range(0, len(symbols), batch_size):
+        batch = symbols[i : i + batch_size]
         logger.info(f"抓取第 {i // batch_size + 1} 批 ({len(batch)} 支): {batch[0]}..{batch[-1]}")
 
         try:
@@ -57,7 +57,7 @@ def fetch_prices(
 
         frames.append(df_batch) # type: ignore
 
-        if pause and i + batch_size < len(symbol):
+        if pause and i + batch_size < len(symbols):
             time.sleep(pause)
 
     if not frames:
@@ -75,8 +75,8 @@ def fetch_prices(
     bad_tickers = all_nan_by_ticker[all_nan_by_ticker].index.tolist()
 
     if bad_tickers:
-        ratio = len(bad_tickers) / len(symbol)
-        msg = f"{len(bad_tickers)}/{len(symbol)} 支 ticker 的价格数据全部为空: {bad_tickers}"
+        ratio = len(bad_tickers) / len(symbols)
+        msg = f"{len(bad_tickers)}/{len(symbols)} 支 ticker 的价格数据全部为空: {bad_tickers}"
         if ratio > max_missing_ratio:
             raise YahooFetchError(f"{msg} (超过 {max_missing_ratio:.0%} 的容忍阈值, 拒绝写入缓存)")
         logger.warning(msg)
@@ -96,5 +96,5 @@ def save_prices(
 
 if __name__ == "__main__":
     tickers = load_sp500_list()
-    df = fetch_prices(symbol=tickers, start="2020-01-01", end="2026-08-20")
+    df = fetch_prices(symbols=tickers, start="2020-01-01", end="2026-08-20")
     save_prices(df, path=YAHOO_CACHE_PATH)

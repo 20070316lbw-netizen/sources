@@ -117,7 +117,7 @@ def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
 
     # 1. 抓取价格
     logger.info(f"正在抓取 {sample_tickers} 从 {start_date} 到 {end_date} 的行情数据...")
-    df_prices = fetch_prices(symbol=sample_tickers, start=start_date, end=end_date)
+    df_prices = fetch_prices(symbols=sample_tickers, start=start_date, end=end_date)
     logger.info(f"获取到的价格数据形状: {df_prices.shape}")
     logger.info(f"索引名: {df_prices.index.names}, 列名: {list(df_prices.columns)}")
     print(df_prices.head())
@@ -142,7 +142,7 @@ def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
 
     # 5. 测试异常行情抓取抛出 YahooFetchError
     try:
-        fetch_prices(symbol=["INVALID_TICKER_XYZ_123"], start="2024-01-01", end="2024-01-02")
+        fetch_prices(symbols=["INVALID_TICKER_XYZ_123"], start="2024-01-01", end="2024-01-02")
         logger.warning("抓取无效标的未抛出异常，可能返回了空结构")
     except YahooFetchError as e:
         logger.success(f"抓取无效数据正确抛出 YahooFetchError: {e}")
