@@ -9,7 +9,6 @@ from loguru import logger
 
 from sources.error import YahooFetchError
 from sources.universe.load import load_sp500_list
-from sources.config import YAHOO_CACHE_PATH
 
 
 def fetch_prices(
@@ -99,6 +98,6 @@ def save_prices(
 
 
 if __name__ == "__main__":
-    tickers = load_sp500_list()
+    tickers = load_sp500_list(path="data/sp500_ticker.csv")
     df = fetch_prices(symbols=tickers, start="2020-01-01", end="2026-08-20")
-    save_prices(df, path=YAHOO_CACHE_PATH)
+    save_prices(df, path="data/sp500.parquet")

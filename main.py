@@ -7,7 +7,6 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from sources.config import DATA_DIR, SP500_CACHE_PATH
 from sources.error import (
     DataFetchError,
     EdgarFetchError,
@@ -35,6 +34,11 @@ from sources.universe.fetch import (
 )
 from sources.yahoo.fetch import fetch_prices, save_prices
 from sources.yahoo.load import load_prices
+
+# 本脚本是仓库内的手动全流程测试入口, 不属于打包发布的 sources 包本身,
+# 这里的 data/ 路径就是这个脚本自己相对于运行目录 (仓库根目录) 的本地缓存位置。
+_DATA_DIR = Path("data")
+_SP500_CACHE_PATH = _DATA_DIR / "sp500_ticker.csv"
 
 
 def test_error_hierarchy() -> None:
@@ -82,13 +86,14 @@ def test_universe_pipeline() -> pd.DataFrame:
     members = fetch_sp500_universe()
     logger.info(f"抓取到 {len(members)} 条记录，首条数据: {members[0]}")
 
-    # 2. 转换为 DataFrame 并保存到 SP500_CACHE_PATH
+    # 2. 转换为 DataFrame 并保存到 _SP500_CACHE_PATH
     df_universe = pd.DataFrame([m.model_dump() for m in members])
-    df_universe.to_csv(SP500_CACHE_PATH, index=False)
-    logger.success(f"已缓存至 {SP500_CACHE_PATH}")
+    _SP500_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df_universe.to_csv(_SP500_CACHE_PATH, index=False)
+    logger.success(f"已缓存至 {_SP500_CACHE_PATH}")
 
     # 3. 测试 load_cached_universe
-    loaded_df = load_cached_universe()
+    loaded_df = load_cached_universe(path=_SP500_CACHE_PATH)
     assert len(loaded_df) == len(df_universe), "读取缓存行数不一致"
     # 确认 CIK 前导零保留
     sample_cik = loaded_df["cik"].iloc[0]
@@ -113,7 +118,7 @@ def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
     
     start_date = "2024-01-02"
     end_date = "2024-01-10"
-    parquet_path = DATA_DIR / "test_prices.parquet"
+    parquet_path = _DATA_DIR / "test_prices.parquet"
 
     # 1. 抓取价格
     logger.info(f"正在抓取 {sample_tickers} 从 {start_date} 到 {end_date} 的行情数据...")
@@ -133,7 +138,7 @@ def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
     logger.success(f"价格数据成功加载验证 (通过 str 路径)，MultiIndex: {loaded_prices.index.names}")
 
     # 4. 测试读取不存在文件的错误处理 (传入 str 路径)
-    fake_path_str = str(DATA_DIR / "non_existent_file.parquet")
+    fake_path_str = str(_DATA_DIR / "non_existent_file.parquet")
     try:
         load_prices(path=fake_path_str)
         logger.error("未能触发 FileNotFoundError 异常")
@@ -156,7 +161,7 @@ def test_sec_pipeline(sample_tickers: list[str]) -> None:
     """测试 SEC EDGAR 财报抓取、PIT 日频处理与 Parquet 存储"""
     logger.info("=== [5/5] 测试 SEC EDGAR 模块 (基本面抓取、PIT 对齐与存储) ===")
 
-    parquet_path = DATA_DIR / "test_fundamentals_daily.parquet"
+    parquet_path = _DATA_DIR / "test_fundamentals_daily.parquet"
 
     # 1. 测试单标的财报抓取
     target_symbol = sample_tickers[0] if sample_tickers else "AAPL"
@@ -193,7 +198,7 @@ def test_sec_pipeline(sample_tickers: list[str]) -> None:
     logger.success(f"PIT 基本面数据成功加载验证，MultiIndex: {loaded_df.index.names}")
 
     # 5. 测试读取不存在文件的错误处理
-    fake_path_str = str(DATA_DIR / "non_existent_fundamentals.parquet")
+    fake_path_str = str(_DATA_DIR / "non_existent_fundamentals.parquet")
     try:
         load_fundamentals(path=fake_path_str)
         logger.error("未能触发 FileNotFoundError 异常")

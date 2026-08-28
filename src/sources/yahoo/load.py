@@ -4,9 +4,6 @@ from pathlib import Path
 import pandas as pd
 from loguru import logger
 
-from sources.universe.load import load_sp500_list
-from sources.config import YAHOO_CACHE_PATH
-
 
 def load_prices(*, path: Path | str) -> pd.DataFrame:
     """从本地读取价格数据, MultiIndex 和 dtype 都会自动还原"""
@@ -19,5 +16,5 @@ def load_prices(*, path: Path | str) -> pd.DataFrame:
     return pd.read_parquet(path_obj)
 
 if __name__ == "__main__":
-    df = load_prices(path=YAHOO_CACHE_PATH)
+    df = load_prices(path="data/sp500.parquet")
     print(df)

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from io import StringIO
+from pathlib import Path
 
 import pandas as pd
 import requests
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from sources.config import SEC_IDENTITY, SP500_CACHE_PATH
+from sources.config import SEC_IDENTITY
 from sources.error import EdgarFetchError, WikiFetchError
 
 _WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -148,14 +149,19 @@ def fetch_sp500_universe(
     return universe
 
 
-def load_cached_universe() -> pd.DataFrame:
-    """读取本地 universe CSV, 同时保留 CIK 的前导零。"""
-    if not SP500_CACHE_PATH.exists():
+def load_cached_universe(*, path: Path | str) -> pd.DataFrame:
+    """读取本地 universe CSV, 同时保留 CIK 的前导零。
+
+    Args:
+        path: universe 缓存 CSV 的路径, 需由调用方显式指定。
+    """
+    path_obj = Path(path)
+    if not path_obj.exists():
         raise FileNotFoundError(
-            f"{SP500_CACHE_PATH} 不存在, 请先生成缓存"
+            f"{path_obj} 不存在, 请先生成缓存"
         )
 
-    universe = pd.read_csv(SP500_CACHE_PATH, dtype={"cik": str})
+    universe = pd.read_csv(path_obj, dtype={"cik": str})
     universe["cik"] = universe["cik"].str.zfill(10)
     return universe
 
