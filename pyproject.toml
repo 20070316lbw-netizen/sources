@@ -1,7 +1,7 @@
 [project]
 name = "sources"
 version = "0.1.0"
-description = "Add your description here"
+description = "个人量化数据源工具库：Yahoo 行情、S&P 500 成分股与 SEC EDGAR 基本面数据的抓取与本地缓存"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -9,20 +9,23 @@ from loguru import logger
 
 from sources.error import YahooFetchError
 from sources.universe.load import load_sp500_list
-from sources.config import YAHOO_CACHE_PATH
 
 
 def fetch_prices(
     *,
-    symbol: list[str],
+    symbols: list[str],
     start: str | pd.Timestamp,
     end: str | pd.Timestamp,
     batch_size: int = 50,
     threads: bool = False,
     pause: float = 1.0,
     max_missing_ratio: float = 0.2,
+    auto_adjust: bool = False,
 ) -> pd.DataFrame:
     """抓取价格数据, 返回整理成长表格式的 df (MultiIndex: Date, Ticker)
+
+    auto_adjust 控制是否用 yfinance 复权后的价格覆盖原始收盘价 (默认 False, 保留原始价格
+    与单独的 adj close 列)。
 
     分批 (batch_size) 顺序抓取, 而不是一次性对全部 ticker 发起大并发请求:
     yfinance 内部用一个共享的本地 sqlite 文件 (~/Library/Caches/py-yfinance/tkr-tz.db)
@@ -35,13 +38,13 @@ def fetch_prices(
     """
     frames: list[pd.DataFrame] = []
 
-    for i in range(0, len(symbol), batch_size):
-        batch = symbol[i : i + batch_size]
+    for i in range(0, len(symbols), batch_size):
+        batch = symbols[i : i + batch_size]
         logger.info(f"抓取第 {i // batch_size + 1} 批 ({len(batch)} 支): {batch[0]}..{batch[-1]}")
 
         try:
             price = yf.download(
-                tickers=batch, start=start, end=end, auto_adjust=False, threads=threads
+                tickers=batch, start=start, end=end, auto_adjust=auto_adjust, threads=threads
             )
         except Exception as exc:
             raise YahooFetchError(f"yfinance 抓取过程中发生异常 (batch {i}): {exc}") from exc
@@ -57,7 +60,7 @@ def fetch_prices(
 
         frames.append(df_batch) # type: ignore
 
-        if pause and i + batch_size < len(symbol):
+        if pause and i + batch_size < len(symbols):
             time.sleep(pause)
 
     if not frames:
@@ -75,8 +78,8 @@ def fetch_prices(
     bad_tickers = all_nan_by_ticker[all_nan_by_ticker].index.tolist()
 
     if bad_tickers:
-        ratio = len(bad_tickers) / len(symbol)
-        msg = f"{len(bad_tickers)}/{len(symbol)} 支 ticker 的价格数据全部为空: {bad_tickers}"
+        ratio = len(bad_tickers) / len(symbols)
+        msg = f"{len(bad_tickers)}/{len(symbols)} 支 ticker 的价格数据全部为空: {bad_tickers}"
         if ratio > max_missing_ratio:
             raise YahooFetchError(f"{msg} (超过 {max_missing_ratio:.0%} 的容忍阈值, 拒绝写入缓存)")
         logger.warning(msg)
@@ -87,8 +90,14 @@ def fetch_prices(
 def save_prices(
     df: pd.DataFrame,
     *,
-    path: Path | str,
+    path: Path | str = "data/sp500.parquet",
 ) -> None:
+    """保存价格数据为 Parquet 文件。
+
+    Args:
+        path: 落盘路径。默认 "data/sp500.parquet" ——
+            相对路径以调用方当前工作目录 (通常就是调用方项目根目录) 为起点。
+    """
     path_obj = Path(path)
     path_obj.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path_obj)
@@ -96,5 +105,5 @@ def save_prices(
 
 if __name__ == "__main__":
     tickers = load_sp500_list()
-    df = fetch_prices(symbol=tickers, start="2020-01-01", end="2026-08-20")
-    save_prices(df, path=YAHOO_CACHE_PATH)
+    df = fetch_prices(symbols=tickers, start="2020-01-01", end="2026-08-20")
+    save_prices(df)
