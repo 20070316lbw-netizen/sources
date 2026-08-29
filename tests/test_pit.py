@@ -16,9 +16,12 @@ def test_to_daily_pit_alignment_and_ffill():
     # 构造两支标的的模拟财报披露数据
     raw_data = pd.DataFrame(
         [
-            {"date": "2024-01-02", "ticker": "AAPL", "revenue": 100.0, "net_income": 20.0, "form": "10-Q"},
-            {"date": "2024-01-05", "ticker": "AAPL", "revenue": 110.0, "net_income": 25.0, "form": "10-Q"},
-            {"date": "2024-01-02", "ticker": "MSFT", "revenue": 80.0, "net_income": 15.0, "form": "10-Q"},
+            {"date": "2024-01-02", "ticker": "AAPL", "revenue": 100.0,
+             "net_income": 20.0, "form": "10-Q"},
+            {"date": "2024-01-05", "ticker": "AAPL", "revenue": 110.0,
+             "net_income": 25.0, "form": "10-Q"},
+            {"date": "2024-01-02", "ticker": "MSFT", "revenue": 80.0,
+             "net_income": 15.0, "form": "10-Q"},
         ]
     )
 

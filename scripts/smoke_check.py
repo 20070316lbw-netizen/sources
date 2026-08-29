@@ -1,27 +1,31 @@
-"""对所有已实现的代码模块进行全流程测试运行。"""
+"""联网冒烟检查：把 universe / yahoo / sec 三条链路真跑一遍。
+
+这不是单元测试 —— 它会真的请求维基百科、Yahoo 和 SEC EDGAR, 会往 data/ 写缓存文件,
+单步失败只记日志不中断。自动化测试在 tests/ 下, 用 `uv run pytest` 跑。
+
+用法 (需在仓库根目录执行, data/ 是相对当前工作目录的缓存位置)::
+
+    uv run python scripts/smoke_check.py
+"""
 
 from __future__ import annotations
 
 import traceback
 from pathlib import Path
+
 import pandas as pd
 from loguru import logger
 
 from sources.error import (
     DataFetchError,
     EdgarFetchError,
-    PgsqlError,
     QuantLabError,
-    SchemaInitializationError,
-    UniverseLoadError,
     WikiFetchError,
     YahooFetchError,
-    YahooLoadError,
 )
 from sources.sec.fetch import (
     fetch_filing_metrics,
     fetch_sp500_fundamentals,
-    init_edgar,
     save_fundamentals,
     to_daily_pit,
 )
@@ -35,31 +39,26 @@ from sources.universe.fetch import (
 from sources.yahoo.fetch import fetch_prices, save_prices
 from sources.yahoo.load import load_prices
 
-# 本脚本是仓库内的手动全流程测试入口, 不属于打包发布的 sources 包本身,
-# 这里的 data/ 路径就是这个脚本自己相对于运行目录 (仓库根目录) 的本地缓存位置。
+# 本脚本不属于打包发布的 sources 包本身, data/ 是它相对于运行目录 (仓库根目录) 的缓存位置。
 _DATA_DIR = Path("data")
 _SP500_CACHE_PATH = _DATA_DIR / "sp500_ticker.csv"
 
 
-def test_error_hierarchy() -> None:
-    """测试异常体系继承关系"""
-    logger.info("=== [1/5] 测试自定义异常体系 ===")
+def check_error_hierarchy() -> None:
+    """检查异常体系继承关系"""
+    logger.info("=== [1/5] 检查自定义异常体系 ===")
     assert issubclass(DataFetchError, QuantLabError)
-    assert issubclass(PgsqlError, QuantLabError)
     assert issubclass(WikiFetchError, DataFetchError)
     assert issubclass(YahooFetchError, DataFetchError)
     assert issubclass(EdgarFetchError, DataFetchError)
-    assert issubclass(SchemaInitializationError, PgsqlError)
-    assert issubclass(UniverseLoadError, PgsqlError)
-    assert issubclass(YahooLoadError, PgsqlError)
 
     edgar_err = EdgarFetchError("0000320193", status_code=404)
     assert "0000320193" in str(edgar_err)
     logger.success("异常体系测试通过！\n")
 
 
-def test_universe_member_model() -> None:
-    """测试 SP500UniverseMember Pydantic 模型的数据清洗与校验规则"""
+def check_universe_member_model() -> None:
+    """检查 SP500UniverseMember Pydantic 模型的数据清洗与校验规则"""
     logger.info("=== [2/5] 测试 SP500UniverseMember 数据模型 ===")
     
     # 正常数据及自动清洗测试 (如 ticker '.' 转 '-', CIK 补 0)
@@ -77,8 +76,8 @@ def test_universe_member_model() -> None:
     logger.success("SP500UniverseMember 模型测试通过！\n")
 
 
-def test_universe_pipeline() -> pd.DataFrame:
-    """测试 S&P 500 Universe 抓取、缓存保存、缓存读取与 SEC 交叉验证"""
+def check_universe_pipeline() -> pd.DataFrame:
+    """检查 S&P 500 Universe 抓取、缓存保存、缓存读取与 SEC 交叉验证"""
     logger.info("=== [3/5] 测试 Universe 模块 (抓取、缓存与 SEC 校验) ===")
 
     # 1. 抓取 Wikipedia
@@ -112,8 +111,8 @@ def test_universe_pipeline() -> pd.DataFrame:
     return loaded_df
 
 
-def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
-    """测试 Yahoo 价格数据抓取、parquet 保存与加载"""
+def check_yahoo_pipeline(sample_tickers: list[str]) -> None:
+    """检查 Yahoo 价格数据抓取、parquet 保存与加载"""
     logger.info("=== [4/5] 测试 Yahoo 模块 (行情抓取、Parquet 存储与读取) ===")
     
     start_date = "2024-01-02"
@@ -157,8 +156,8 @@ def test_yahoo_pipeline(sample_tickers: list[str]) -> None:
     logger.success("Yahoo 模块测试完成！\n")
 
 
-def test_sec_pipeline(sample_tickers: list[str]) -> None:
-    """测试 SEC EDGAR 财报抓取、PIT 日频处理与 Parquet 存储"""
+def check_sec_pipeline(sample_tickers: list[str]) -> None:
+    """检查 SEC EDGAR 财报抓取、PIT 日频处理与 Parquet 存储"""
     logger.info("=== [5/5] 测试 SEC EDGAR 模块 (基本面抓取、PIT 对齐与存储) ===")
 
     parquet_path = _DATA_DIR / "test_fundamentals_daily.parquet"
@@ -183,7 +182,9 @@ def test_sec_pipeline(sample_tickers: list[str]) -> None:
     logger.info(f"执行 PIT 日频对齐 (日期范围: {start_date} ~ {end_date}, ffill 填充)...")
     daily_pit_df = to_daily_pit(raw_fundamentals, start=start_date, end=end_date)
     
-    assert daily_pit_df.index.names == ["Date", "Ticker"], "PIT 索引结构不符合 MultiIndex (Date, Ticker)"
+    assert daily_pit_df.index.names == ["Date", "Ticker"], (
+        "PIT 索引结构不符合 MultiIndex (Date, Ticker)"
+    )
     logger.info(f"PIT 日频数据生成完毕，形状: {daily_pit_df.shape}")
     logger.info("PIT 样本数据展示 (尾部5行):")
     print(daily_pit_df[["revenue", "net_income", "operating_cash_flow", "current_ratio"]].tail(5))
@@ -209,24 +210,24 @@ def test_sec_pipeline(sample_tickers: list[str]) -> None:
 
 
 def main() -> None:
-    logger.info("================ 开始全模块测试 ================")
+    logger.info("================ 开始全模块冒烟检查 ================")
     
     # 1. 测试异常类
     try:
-        test_error_hierarchy()
+        check_error_hierarchy()
     except Exception:
         logger.error(f"异常体系测试失败:\n{traceback.format_exc()}")
 
     # 2. 测试 Pydantic 模型
     try:
-        test_universe_member_model()
+        check_universe_member_model()
     except Exception:
         logger.error(f"Universe 模型测试失败:\n{traceback.format_exc()}")
 
     # 3. 测试 Universe 数据流
     universe_df = None
     try:
-        universe_df = test_universe_pipeline()
+        universe_df = check_universe_pipeline()
     except Exception:
         logger.error(f"Universe 流程测试失败:\n{traceback.format_exc()}")
 
@@ -236,21 +237,18 @@ def main() -> None:
         sample_tickers = universe_df["ticker"].head(3).tolist()
 
     try:
-        test_yahoo_pipeline(sample_tickers)
+        check_yahoo_pipeline(sample_tickers)
     except Exception:
         logger.error(f"Yahoo 流程测试失败:\n{traceback.format_exc()}")
 
     # 5. 测试 SEC EDGAR 基本面数据流 (包含 PIT 日频处理)
     try:
-        test_sec_pipeline(sample_tickers)
+        check_sec_pipeline(sample_tickers)
     except Exception:
         logger.error(f"SEC EDGAR 流程测试失败:\n{traceback.format_exc()}")
 
-    logger.info("================ 测试流程结束 ================")
+    logger.info("================ 冒烟检查结束 ================")
 
 
 if __name__ == "__main__":
     main()
-
-
-

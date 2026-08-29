@@ -1,54 +1,74 @@
-## 资源加载配置示例
+# sources
 
-1. Yahoo 数据源抓取加存 parquet 文件加以 Multindex 形式读取数据
-2. universe 数据抓取, 以 csv 文件格式保存
-3. SEC EDGAR 数据抓取
----
-### 快速开始
-推荐使用`uv` 管理环境
+个人量化研究用的数据源工具库：抓取 Yahoo 行情、S&P 500 成分股与 SEC EDGAR 基本面数据，统一整理成
+`MultiIndex (Date, Ticker)` 的 DataFrame 并缓存到本地。只放在 GitHub 上，不发布到 PyPI，供其他研究项目以 git 依赖的方式引用。
+
+| 子包 | 数据源 | 产出 |
+| --- | --- | --- |
+| `sources.universe` | 维基百科 S&P 500 列表 + SEC CIK 注册库交叉校验 | `data/sp500_ticker.csv` |
+| `sources.yahoo` | yfinance 日线行情 | `data/sp500.parquet` |
+| `sources.sec` | SEC EDGAR 10-K / 10-Q，含日频 Point-in-Time 对齐 | `data/sec/sp500_fundamentals_daily.parquet` |
+
+## 本地开发
+
+推荐用 `uv` 管理环境：
+
 ```bash
-uv sync
+uv sync                                  # 装依赖
+uv run pytest                            # 跑自动化测试 (不联网)
+uv run ruff check .                       # 跑 lint
+uv run python scripts/smoke_check.py     # 联网冒烟检查, 三条链路真跑一遍
 ```
 
-测试代码是否有效
-```bash
-uv run python main.py
-```
+`scripts/smoke_check.py` 会真的发请求并往 `data/` 写缓存，只在想验证外部接口是否还能用的时候手动跑；
+CI 里跑的是 `tests/` 下不联网的单元测试。
 
-运行自动化测试
-```bash
-uv run pytest
-```
+## 在其他项目中引用
 
----
-### 作为 GitHub 包在其他项目中使用
-
-本仓库不发布到 PyPI，只放在 GitHub 上，通过 git 依赖的方式被其他项目引用即可。
-
-**在使用 `uv` 管理的项目中：**
 ```bash
 uv add git+https://github.com/20070316lbw-netizen/sources.git
+# pip 用户：pip install git+https://github.com/20070316lbw-netizen/sources.git
 ```
 
-**在使用 `pip` 的项目中：**
-```bash
-pip install git+https://github.com/20070316lbw-netizen/sources.git
-```
+建议固定到某个 commit 或 tag，避免 `main` 更新后被引用方意外拉到不兼容的改动：
 
-建议固定到某个 commit 或 tag，避免 `main` 分支更新后被引用方意外拉取到不兼容的改动，例如：
 ```bash
 uv add git+https://github.com/20070316lbw-netizen/sources.git@<commit-or-tag>
 ```
 
-安装后即可直接导入使用：
+安装后按子包导入：
+
 ```python
-from sources.yahoo.fetch import fetch_prices, save_prices
-from sources.yahoo.load import load_prices
-from sources.universe.fetch import fetch_sp500_universe, load_cached_universe
-from sources.sec.fetch import init_edgar, fetch_filing_metrics, fetch_sp500_fundamentals, to_daily_pit
+from sources.universe import fetch_sp500_universe, load_sp500_list, load_cached_universe
+from sources.yahoo import fetch_prices, save_prices, load_prices
+from sources.sec import fetch_sec, fetch_filing_metrics, to_daily_pit, load_fundamentals
 from sources.error import QuantLabError, DataFetchError, YahooFetchError, EdgarFetchError
+
+symbols = load_sp500_list()                        # 读/写 data/sp500_ticker.csv
+prices = fetch_prices(symbols=symbols, start="2020-01-01", end="2026-08-20")
+save_prices(prices)                                # 落到 data/sp500.parquet
+
+daily_pit = fetch_sec(symbols=symbols, limit=8)    # 日频 PIT 基本面, 可直接与 prices 对齐
 ```
 
-注意：使用 `sources.sec` 模块前需要按 `.env.example` 的说明配置 `SEC_IDENTITY`（SEC EDGAR 要求 User-Agent 携带真实姓名与邮箱），否则请求可能被拒绝。
+顶层 `import sources` 不做 re-export，这样只用 universe 的调用方不会被迫加载 yfinance 和 edgartools。
 
-**关于路径**：`sources.config` 里不再有基于包自身安装位置 (`Path(__file__)`) 派生的路径——一旦作为 git 依赖被其他项目安装，包文件所在位置和调用方项目目录是两回事，用包安装位置拼出来的路径在调用方那边毫无意义。所有涉及文件读写的函数（`load_cached_universe` / `load_sp500_list` / `save_prices` / `load_prices` / `save_fundamentals` / `load_fundamentals` / `fetch_sec` 的 `save_path` 等）的 `path` 参数都是**相对路径**，默认值形如 `"data/sp500_ticker.csv"`——按 Python 的一般约定，相对路径以调用方进程的当前工作目录为起点，也就是调用方项目自己在 `data/` 下的缓存位置（前提是像 `uv run python xxx.py` 这样从项目根目录运行）。不想用默认位置的话，随时可以传入自己的 `path=...` 覆盖。
+## 配置
+
+`sources.sec` 与 `universe` 的 CIK 交叉校验都要请求 SEC，SEC 要求 User-Agent 里带真实姓名和邮箱。
+复制 `.env.example` 为 `.env` 并填上自己的身份信息（`.env` 已在 `.gitignore` 中）：
+
+```bash
+cp .env.example .env
+```
+
+## 关于路径参数
+
+所有读写文件的函数（`load_cached_universe` / `load_sp500_list` / `save_prices` / `load_prices` /
+`save_fundamentals` / `load_fundamentals` / `fetch_sec` 的 `save_path`）都接受 `path` 参数，
+默认值是 **相对路径**，如 `"data/sp500_ticker.csv"`，以调用方进程的当前工作目录为起点
+（即从项目根目录 `uv run python xxx.py` 时，就是调用方自己的 `data/`）。
+
+包内刻意不基于 `Path(__file__)` 派生任何路径——作为 git 依赖装到别人项目里之后，包的安装位置
+和调用方的项目目录是两回事，用安装位置拼出来的路径在调用方那边没有意义。想放别处随时传
+`path=...` 覆盖。

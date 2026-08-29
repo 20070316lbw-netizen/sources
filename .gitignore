@@ -18,5 +18,6 @@ wheels/
 data/*
 !data/.gitkeep
 
-# Pytest cache
+# 工具缓存
 .pytest_cache/
+.ruff_cache/

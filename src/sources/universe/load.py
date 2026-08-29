@@ -40,8 +40,3 @@ def load_sp500_list(*, path: Path | str = "data/sp500_ticker.csv") -> list[str]:
     """
     df = _load_sp500_dataframe(path=path)
     return df["ticker"].tolist()
-
-
-if __name__ == "__main__":
-    target = load_sp500_list()
-    print(target)

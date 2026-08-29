@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   test:
-    name: Run Unit Tests
+    name: Lint & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -29,10 +29,14 @@ jobs:
           enable-cache: true
           python-version: "3.12"
 
-      # 3. 同步安装依赖 (包括 pyproject.toml 里的 dev 依赖 pytest)
+      # 3. 同步安装依赖 (包括 pyproject.toml 里的 dev 依赖 pytest / ruff)
       - name: Install dependencies
         run: uv sync
 
-      # 4. 执行自动化测试
+      # 4. 静态检查 (只跑 lint; 不强制 ruff format, 以免覆盖代码里刻意的对齐排版)
+      - name: Run ruff
+        run: uv run ruff check .
+
+      # 5. 执行自动化测试
       - name: Run pytest
         run: uv run pytest -v

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pandas as pd
 
 
-def load_fundamentals(*, path: Path | str = "data/sec/sp500_fundamentals_daily.parquet") -> pd.DataFrame:
+def load_fundamentals(
+    *,
+    path: Path | str = "data/sec/sp500_fundamentals_daily.parquet",
+) -> pd.DataFrame:
     """从本地 Parquet 文件加载基本面数据，自动还原 MultiIndex 与数据类型。
 
     Args:
