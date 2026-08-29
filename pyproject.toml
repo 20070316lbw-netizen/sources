@@ -5,22 +5,18 @@ description = "个人量化数据源工具库：Yahoo 行情、S&P 500 成分股
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "dotenv>=0.9.9",
     "edgartools>=5.52.0",
     "loguru>=0.7.3",
+    # pandas.read_html 解析维基百科表格时的后端, 代码里不直接 import
     "lxml>=6.1.2",
-    "numpy>=2.5.2",
     "pandas>=3.0.5",
+    "pydantic>=2.9.0",
+    # pandas.to_parquet / read_parquet 的引擎, 代码里不直接 import
     "pyarrow>=25.0.1",
     "python-dotenv>=1.0.1",
-    "pyyaml>=6.0.3",
     "requests>=2.34.2",
-    "rich>=15.0.0",
     "yfinance>=1.6.0",
 ]
-
-[project.scripts]
-sources = "sources:main"
 
 [build-system]
 requires = ["uv_build>=0.11.21,<0.12.0"]
@@ -29,4 +25,22 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "ruff>=0.9.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
