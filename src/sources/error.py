@@ -1,24 +1,42 @@
-"""定义所有错误的基类"""
+"""本包所有自定义异常。
+
+层次结构::
+
+    QuantLabError                 # 捕获它 = 捕获本包抛出的一切异常
+    └── DataFetchError            # 所有"外部数据抓取失败"的根
+        ├── WikiFetchError        # 维基百科 S&P 500 成分股页面
+        ├── YahooFetchError       # yfinance 行情
+        └── EdgarFetchError       # SEC EDGAR 财报
+"""
 
 from __future__ import annotations
 
 
-# ---------------------------------------------------------- 
-# 总错误类
 class QuantLabError(Exception):
-    """项目所有自定义异常的根。捕获它 = 捕获本项目抛出的一切异常。"""
-# ---------------------------------------------------------- 
-# 总错误类下的分支
+    """本包所有自定义异常的根。捕获它 = 捕获本包抛出的一切异常。"""
+
+
 class DataFetchError(QuantLabError):
-    """项目内所有数据抓取自定义异常的根"""
+    """所有外部数据抓取相关异常的根。"""
 
-class PgsqlError(QuantLabError):
-    """所有 PostgerSQL 自定义异常的根"""
 
-# ---------------------------------------------------------- 
-# 数据抓取相关
+class WikiFetchError(DataFetchError):
+    """维基百科成分股页面请求或解析失败。"""
+
+
+class YahooFetchError(DataFetchError):
+    """yfinance 行情抓取失败, 或抓到的数据未通过质量校验。"""
+
+
 class EdgarFetchError(DataFetchError):
-    """EDGAR 数据抓取相关的错误。"""
+    """SEC EDGAR 财报抓取或解析失败。
+
+    两种构造方式:
+
+    - ``EdgarFetchError("网络连接超时")`` —— 直接给一句错误描述;
+    - ``EdgarFetchError("0000320193", status_code=404)`` —— 给 CIK 加 HTTP 状态码,
+      消息会被自动拼成 "CIK 0000320193 抓取失败, 状态码 404"。
+    """
 
     def __init__(self, message_or_cik: str = "", status_code: int | None = None) -> None:
         if status_code is not None:
@@ -29,36 +47,3 @@ class EdgarFetchError(DataFetchError):
             self.cik = ""
             self.status_code = None
             super().__init__(message_or_cik)
-
-
-class YahooFetchError(DataFetchError):
-    """Yahoo 数据抓取相关的错误"""
-
-
-class WikiFetchError(DataFetchError):
-    """Wiki 数据抓取相关错误。"""
-# ---------------------------------------------------------- 
-# 数据库与存储相关
-class SchemaInitializationError(PgsqlError):
-    """数据库 schema 初始化失败。"""
-
-
-class UniverseLoadError(PgsqlError):
-    """Universe 快照写入失败或输入不满足写入约束。"""
-
-
-class YahooLoadError(PgsqlError):
-    """Yahoo 数据入库时失败"""
-
-
-class EdgarLoadError(PgsqlError):
-    """EDGAR 数据入库或读取时失败"""
-
-# ---------------------------------------------------------- 
-# 杂项
-
-
-
-        
-
-
