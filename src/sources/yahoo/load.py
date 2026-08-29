@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pandas as pd
 from loguru import logger
 
@@ -19,7 +20,3 @@ def load_prices(*, path: Path | str = "data/sp500.parquet") -> pd.DataFrame:
         )
     logger.success(f"成功在 {path} 读取到数据")
     return pd.read_parquet(path_obj)
-
-if __name__ == "__main__":
-    df = load_prices()
-    print(df)

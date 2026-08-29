@@ -7,14 +7,15 @@ from sources.universe.load import load_sp500_list
 from sources.sec.fetch import fetch_sec
 
 symbols = load_sp500_list()  # 默认读/写 data/sp500_ticker.csv (相对调用方项目根目录)
-daily_pit = fetch_sec(symbols=symbols, limit=8)  # 默认落盘到 data/sec/sp500_fundamentals_daily.parquet
+# 默认落盘到 data/sec/sp500_fundamentals_daily.parquet
+daily_pit = fetch_sec(symbols=symbols, limit=8)
 ```
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import pandas as pd
 from edgar import Company, set_identity
@@ -147,7 +148,8 @@ def to_daily_pit(
 
     处理逻辑：
     1. 以财报实际向 SEC 披露的日期 (date / filing_date) 作为生效生效起点;
-    2. 使用 pandas 现成的 unstack -> reindex -> ffill -> stack 流水线，在新财报披露前自动沿用上期数据；
+    2. 使用 pandas 现成的 unstack -> reindex -> ffill -> stack 流水线，
+       在新财报披露前自动沿用上期数据；
     3. 输出 MultiIndex 为 ['Date', 'Ticker']，列名统一为小写，与 Yahoo 价格数据结构无缝拼接。
 
     注意: 若不传入 trading_days, 默认用美国联邦假期日历近似真实交易日, 仍可能与
@@ -170,7 +172,8 @@ def to_daily_pit(
     # 去重（若同一天存在多份披露，保留最后一条）
     df_metrics = df_metrics.drop_duplicates(subset=["date", "ticker"], keep="last")
 
-    # 确定日频日历 (优先使用传入的交易日列表，其次根据 start/end 生成工作日，最后使用数据内置日期跨度)
+    # 确定日频日历: 优先用传入的交易日列表, 其次按 start/end 生成工作日,
+    # 最后退回数据自身的日期跨度
     if trading_days is not None:
         calendar = pd.DatetimeIndex(trading_days) # type: ignore
     elif start is not None and end is not None:
@@ -251,9 +254,3 @@ def fetch_sec(
         logger.success(f"基本面 PIT 数据已保存至 {save_path}")
 
     return daily_pit
-
-if __name__ == "__main__":
-    from sources.universe.load import load_sp500_list
-
-    tickers = load_sp500_list()
-    fetch_sec(symbols=tickers)
