@@ -1,5 +1,7 @@
 # sources
 
+[![CI](https://github.com/20070316lbw-netizen/sources/actions/workflows/ci.yml/badge.svg)](https://github.com/20070316lbw-netizen/sources/actions/workflows/ci.yml)
+
 个人量化数据抓取包，为 Fama-French 三因子(FF3)复现准备原始数据。
 
 **这个仓库只做一件事：从各数据源抓取原始数据，并做字段级的初步清洗**
@@ -13,10 +15,10 @@
 
 ```bash
 # 装最新 main
-uv add "git+https://github.com/<your-username>/sources.git"
+uv add "git+https://github.com/20070316lbw-netizen/sources.git"
 
 # 推荐: 装一个打好 tag 的版本, 避免上游改动悄悄影响你的项目
-uv add "git+https://github.com/<your-username>/sources.git@v0.1.0"
+uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.1.0"
 ```
 
 ## 快速开始
@@ -61,8 +63,10 @@ export EDGAR_IDENTITY="Your Name your@email.com"
 
 ```bash
 uv sync
+uv run ruff check .
 uv run pytest
 ```
 
 测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR），不需要
-真实网络也能跑。
+真实网络也能跑；CI（见 `.github/workflows/ci.yml`）在 push/PR 到
+`main`/`master` 时会跑同样这两步。
