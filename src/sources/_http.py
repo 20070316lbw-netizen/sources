@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from loguru import logger
@@ -26,7 +26,7 @@ DEFAULT_HEADERS = {
 def get_with_retry(
     url: str,
     *,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
     timeout: int = 10,
     max_retries: int = 3,
     backoff: float = 1.5,
@@ -53,7 +53,7 @@ def get_with_retry(
         requests.RequestException: 重试耗尽后仍失败, 或遇到不可重试的错误。
     """
     merged_headers = {**DEFAULT_HEADERS, **(headers or {})}
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
 
     for attempt in range(1, max_retries + 1):
         try:

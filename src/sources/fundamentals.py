@@ -27,7 +27,7 @@ numeric_value, fiscal_period, fiscal_year]。
 from __future__ import annotations
 
 import os
-from typing import Sequence
+from collections.abc import Sequence
 
 import pandas as pd
 from loguru import logger

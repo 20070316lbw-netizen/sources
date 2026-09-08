@@ -18,14 +18,14 @@
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
-from typing import Optional, Sequence, Union
 
 import pandas as pd
 import yfinance as yf
 from loguru import logger
 
-DateLike = Union[str, date, datetime]
+DateLike = str | date | datetime
 
 _COLUMN_MAP = {
     "Open": "open",
@@ -41,9 +41,9 @@ _NUMERIC_COLUMNS = ["open", "high", "low", "close", "adj_close", "volume"]
 
 
 def get_prices(
-    tickers: Union[str, Sequence[str]],
+    tickers: str | Sequence[str],
     start: DateLike,
-    end: Optional[DateLike] = None,
+    end: DateLike | None = None,
     *,
     interval: str = "1d",
     auto_adjust: bool = False,

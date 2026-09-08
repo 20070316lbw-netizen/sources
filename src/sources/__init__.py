@@ -18,8 +18,8 @@ from sources.fundamentals import get_fundamentals, get_fundamentals_batch
 from sources.prices import get_prices
 
 __all__ = [
-    "get_sp500_constituents",
-    "get_prices",
     "get_fundamentals",
     "get_fundamentals_batch",
+    "get_prices",
+    "get_sp500_constituents",
 ]

@@ -1,5 +1,7 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
+
 from sources.constituents import get_sp500_constituents
 
 FAKE_HTML = """

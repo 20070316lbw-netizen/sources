@@ -10,8 +10,9 @@
 """
 from __future__ import annotations
 
-import pandas as pd
 from io import StringIO
+
+import pandas as pd
 from loguru import logger
 
 from sources._http import get_with_retry

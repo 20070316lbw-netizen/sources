@@ -3,7 +3,11 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from sources.fundamentals import DEFAULT_CONCEPTS, get_fundamentals, get_fundamentals_batch
+from sources.fundamentals import (
+    DEFAULT_CONCEPTS,
+    get_fundamentals,
+    get_fundamentals_batch,
+)
 
 _EXPECTED_COLUMNS = [
     "ticker",
