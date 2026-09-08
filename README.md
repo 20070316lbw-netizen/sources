@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/20070316lbw-netizen/sources/actions/workflows/ci.yml/badge.svg)](https://github.com/20070316lbw-netizen/sources/actions/workflows/ci.yml)
 
-个人量化数据抓取包，为 Fama-French 三因子(FF3)复现准备原始数据。
+个人量化数据抓取包, 准备原始数据。
 
 **这个仓库只做一件事：从各数据源抓取原始数据，并做字段级的初步清洗**
 （改列名、转类型、丢弃明显无效的行）。不做跨数据源合并、不计算任何因子
