@@ -24,7 +24,13 @@ uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.1.0"
 ## 快速开始
 
 ```python
-from sources import get_sp500_constituents, get_prices, get_fundamentals
+from sources import (
+    get_sp500_constituents,
+    get_prices,
+    get_fundamentals,
+    get_risk_free_rate,
+    get_exchange_listings,
+)
 
 # 当前 S&P 500 成分股: [ticker, name]
 universe = get_sp500_constituents()
@@ -36,12 +42,20 @@ prices = get_prices(universe["ticker"].tolist()[:20], start="2020-01-01", end="2
 #               duration_days, numeric_value, fiscal_period, fiscal_year]
 # 需要先设置 EDGAR_IDENTITY, 见下方"环境变量"
 fundamentals = get_fundamentals("AAPL")
+
+# 无风险利率(长表): [date, series, value], 默认 FRED 一个月期国债利率
+riskfree = get_risk_free_rate(start="2020-01-01", end="2024-01-01")
+
+# ticker -> 交易所映射: [ticker, cik, name, exchange]
+# 同样需要先设置 EDGAR_IDENTITY
+listings = get_exchange_listings(universe["ticker"].tolist()[:20])
 ```
 
 ## 环境变量
 
-`get_fundamentals` / `get_fundamentals_batch` 依赖 SEC EDGAR，SEC 要求调用方
-提供身份标识，通过环境变量设置：
+`get_fundamentals` / `get_fundamentals_batch` 依赖 SEC EDGAR，`get_exchange_listings`
+依赖的 SEC 批量数据文件同样要求身份标识——SEC 要求所有 sec.gov 请求都携带调用方
+身份，通过环境变量设置：
 
 ```bash
 export EDGAR_IDENTITY="Your Name your@email.com"
@@ -69,6 +83,6 @@ uv run ruff check .
 uv run pytest
 ```
 
-测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR），不需要
+测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR / FRED / SEC），不需要
 真实网络也能跑；CI（见 `.github/workflows/ci.yml`）在 push/PR 到
 `main`/`master` 时会跑同样这两步。
