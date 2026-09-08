@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  
+
+# 基础权限
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 下载仓库代码到 Runner 虚拟机
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 安装 uv 及 Python 运行环境 (开启缓存以大幅加快执行速度)
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      # 3. 同步安装依赖 (包括 pyproject.toml 里的 dev 依赖 pytest / ruff)
+      - name: Install dependencies
+        run: uv sync
+
+      # 4. 静态检查 (只跑 lint; 不强制 ruff format, 以免覆盖代码里刻意的对齐排版)
+      - name: Run ruff
+        run: uv run ruff check .
+
+      # 5. 执行自动化测试
+      - name: Run pytest
+        run: uv run pytest -v
