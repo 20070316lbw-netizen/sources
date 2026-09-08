@@ -56,6 +56,8 @@ export EDGAR_IDENTITY="Your Name your@email.com"
 | `constituents` | Wikipedia | `get_sp500_constituents()` | 只有当前成分股；历史变更表暂未实现 |
 | `prices` | Yahoo Finance (yfinance) | `get_prices(tickers, start, end)` | 支持单个或多个 ticker |
 | `fundamentals` | SEC EDGAR (edgartools) | `get_fundamentals(ticker)` / `get_fundamentals_batch(tickers)` | 默认抓 `StockholdersEquity` 和 `CommonStockSharesOutstanding`，可通过 `concepts` 参数覆盖 |
+| `riskfree` | FRED (pandas-datareader) | `get_risk_free_rate(start, end)` | 默认抓一个月期国债利率(`DGS1MO`)，年化百分比原始口径，可通过 `series` 参数换成其他 FRED 序列 |
+| `listings` | SEC (`company_tickers_exchange.json`) | `get_exchange_listings(tickers=None)` | ticker -> 交易所映射；不传 `tickers` 时返回 SEC 公布的全部挂牌记录 |
 
 架构上的设计取舍和为什么这么分层，见 [DESIGN.md](DESIGN.md)。
 

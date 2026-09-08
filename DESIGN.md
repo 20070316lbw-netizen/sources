@@ -26,9 +26,12 @@
 src/sources/
     __init__.py       公开 API 的唯一入口, 只做 re-export, 不写业务逻辑
     _http.py          自己发 requests 请求的模块共用的重试/UA 逻辑
+                       (含 sec_identity_headers, sec.gov 请求共用)
     constituents.py   S&P 500 成分股 (Wikipedia, 直接用 requests)
     prices.py         历史行情 (yfinance, 库自己管理 HTTP)
     fundamentals.py   SEC EDGAR 基本面 (edgartools, 库自己管理 HTTP)
+    riskfree.py        无风险利率 (FRED, 通过 pandas-datareader)
+    listings.py        交易所归属 (SEC company_tickers_exchange.json, 直接用 requests)
 ```
 
 `_http.py` 只服务于我们自己直接发起的 `requests` 调用（目前只有
@@ -99,9 +102,9 @@ schema保持不变（除非确实需要新增字段）。这是有意的权衡�
 - **历史 S&P 500 成分股**：Wikipedia 页面上还有一张历次增删记录表，可以
   反推任意历史时点的名单（避免用当前名单回测导致的幸存者偏差）。现在只抓了
   当前名单，历史变更表解析起来麻烦一些，先不做。
-- **`pandas-datareader` 依赖当前没有任何模块在用**：保留是因为它是抓取
-  Fama-French 官方因子数据（Ken French Data Library）、或 FRED 无风险利率
-  的常用途径，这两个后续大概率会加。如果确定不需要了可以删掉。
+- **`pandas-datareader` 现在被 `riskfree.py` 用来抓 FRED 无风险利率**；
+  抓 Ken French 官方因子数据（Ken French Data Library）当 benchmark 对照，
+  还没做，后续需要的话可以加。
 - **包名 `sources` 比较通用**：作为 `from sources import ...` 的顶层模块名，
   如果以后某个下游项目同时依赖了另一个也叫 `sources` 的包，会冲突。现在
   只有自己在用，先不改；真要改的话趁早（改了之后所有下游项目的 import 都要

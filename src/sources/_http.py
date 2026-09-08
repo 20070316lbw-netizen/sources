@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
@@ -78,3 +79,25 @@ def get_with_retry(
 
     assert last_exc is not None
     raise last_exc
+
+
+_SEC_IDENTITY_ENV = "EDGAR_IDENTITY"
+
+
+def sec_identity_headers() -> dict[str, str]:
+    """返回带 SEC 要求的身份标识的请求头, 用于我们自己直接发起的 sec.gov 请求。
+
+    SEC 对 sec.gov 的自动化访问(不只是 EDGAR filing API, 批量数据文件同样
+    适用)要求携带能标识调用方的 User-Agent。复用 EDGAR_IDENTITY 环境变量,
+    与 fundamentals.py 里 edgartools 用的是同一个身份, 避免用户设两遍。
+
+    Raises:
+        RuntimeError: 未设置 EDGAR_IDENTITY 环境变量。
+    """
+    identity = os.environ.get(_SEC_IDENTITY_ENV)
+    if not identity:
+        raise RuntimeError(
+            f"未设置环境变量 {_SEC_IDENTITY_ENV}。SEC 要求所有 sec.gov 请求携带身份标识, "
+            f'请先设置, 例如: export {_SEC_IDENTITY_ENV}="Your Name your@email.com"'
+        )
+    return {"User-Agent": identity}
