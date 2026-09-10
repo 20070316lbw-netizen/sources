@@ -4,10 +4,10 @@
 
 个人量化数据抓取包, 准备原始数据。
 
-**这个仓库只做一件事：从各数据源抓取原始数据，并做字段级的初步清洗**
-（改列名、转类型、丢弃明显无效的行）。不做跨数据源合并、不计算任何因子
-或指标、也不做任何形式的本地存储/缓存——这些留给使用方，或者以后独立
-出去的存储层仓库。
+**从各数据源抓取原始数据，并做字段级的初步清洗**
+
+改列名、转类型、丢弃明显无效的行。不做跨数据源合并、不计算任何因子
+或指标、也不做任何形式的本地存储/缓存
 
 ## 安装
 
@@ -17,7 +17,7 @@
 # 装最新 main
 uv add "git+https://github.com/20070316lbw-netizen/sources.git"
 
-# 推荐: 装一个打好 tag 的版本, 避免上游改动悄悄影响你的项目
+# 推荐: 装一个打好 tag 的版本, 避免上游改动的影响
 uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.1.0"
 ```
 
@@ -61,7 +61,7 @@ listings = get_exchange_listings(universe["ticker"].tolist()[:20])
 export EDGAR_IDENTITY="Your Name your@email.com"
 ```
 
-不设置的话会直接抛 `RuntimeError` 并提示怎么设置，不会卡在交互式输入上。
+如果没有设置的话会直接抛 `RuntimeError` 并提示怎么设置.
 
 ## 各数据源
 
