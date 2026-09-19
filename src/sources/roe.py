@@ -7,11 +7,15 @@ ROE = 净利润 / 平均股东权益
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from itertools import pairwise
 
 import pandas as pd
 from edgar import Company, set_identity
 from edgar.xbrl import XBRLS
+from loguru import logger
+
+from sources.map.first_50 import tickers as first_50_tickers
 
 _ROE_COLUMNS = [
     "ticker",
@@ -58,8 +62,8 @@ def get_roe_statements(
         raise ValueError(f"{ticker} 没有可用的 10-K 年报")
 
     xbrls = XBRLS.from_filings(filings)
-    income = xbrls.statements.income_statement(max_periods=years).to_dataframe()
-    balance = xbrls.statements.balance_sheet(max_periods=years).to_dataframe()
+    income = xbrls.statements.income_statement(max_periods=years).to_dataframe() # type: ignore
+    balance = xbrls.statements.balance_sheet(max_periods=years).to_dataframe() # type: ignore
     return income, balance
 
 
@@ -162,5 +166,25 @@ def get_roe(ticker: str, years: int = 1) -> pd.DataFrame:
     return calculate_roe(ticker, income, balance).head(years).reset_index(drop=True)
 
 
+def get_roe_batch(
+    tickers: Iterable[str] = first_50_tickers,
+    years: int = 1,
+) -> pd.DataFrame:
+    """计算多只股票的 ROE；单只失败时记录警告并继续。"""
+
+    frames: list[pd.DataFrame] = []
+    for ticker in tickers:
+        try:
+            result = get_roe(ticker, years=years)
+        except Exception as error:  # noqa: BLE001 - 批量任务不能被单只股票中断
+            logger.warning(f"{ticker}: ROE 计算失败，已跳过 ({error})")
+            continue
+        frames.append(result)
+
+    if not frames:
+        return pd.DataFrame(columns=_ROE_COLUMNS)
+    return pd.concat(frames, ignore_index=True)
+
+
 if __name__ == "__main__":
-    print(get_roe("AAPL"))
+    print(get_roe_batch())
