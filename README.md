@@ -4,10 +4,10 @@
 
 个人量化数据抓取包, 准备原始数据。
 
-**从各数据源抓取原始数据，并做字段级的初步清洗**
+**从各数据源抓取原始数据、做字段级初步清洗，并基于 SEC 年报计算 ROE**
 
-改列名、转类型、丢弃明显无效的行。不做跨数据源合并、不计算任何因子
-或指标、也不做任何形式的本地存储/缓存
+基础数据模块负责改列名、转类型和丢弃明显无效的行，不做跨数据源合并或
+本地存储。`roe` 模块额外提供净资产收益率计算。
 
 ## 安装
 
@@ -31,6 +31,7 @@ from sources import (
     get_risk_free_rate,
     get_exchange_listings,
 )
+from sources.roe import get_roe, get_roe_batch
 
 # 当前 S&P 500 成分股: [ticker, name]
 universe = get_sp500_constituents()
@@ -49,13 +50,19 @@ riskfree = get_risk_free_rate(start="2020-01-01", end="2024-01-01")
 # ticker -> 交易所映射: [ticker, cik, name, exchange]
 # 同样需要先设置 EDGAR_IDENTITY
 listings = get_exchange_listings(universe["ticker"].tolist()[:20])
+
+# 单家公司最近一年的 ROE
+roe = get_roe("AAPL")
+
+# src/sources/map/first_50.py 中 50 只目标股票的 ROE
+roe_50 = get_roe_batch()
 ```
 
 ## 环境变量
 
-`get_fundamentals` / `get_fundamentals_batch` 依赖 SEC EDGAR，`get_exchange_listings`
-依赖的 SEC 批量数据文件同样要求身份标识——SEC 要求所有 sec.gov 请求都携带调用方
-身份，通过环境变量设置：
+`get_fundamentals` / `get_fundamentals_batch`、`get_roe` / `get_roe_batch`
+依赖 SEC EDGAR，`get_exchange_listings` 依赖的 SEC 批量数据文件同样要求身份
+标识——SEC 要求所有 sec.gov 请求都携带调用方身份，通过环境变量设置：
 
 ```bash
 export EDGAR_IDENTITY="Your Name your@email.com"
@@ -72,6 +79,30 @@ export EDGAR_IDENTITY="Your Name your@email.com"
 | `fundamentals` | SEC EDGAR (edgartools) | `get_fundamentals(ticker)` / `get_fundamentals_batch(tickers)` | 默认抓 `StockholdersEquity` 和 `CommonStockSharesOutstanding`，可通过 `concepts` 参数覆盖 |
 | `riskfree` | FRED (pandas-datareader) | `get_risk_free_rate(start, end)` | 默认抓一个月期国债利率(`DGS1MO`)，年化百分比原始口径，可通过 `series` 参数换成其他 FRED 序列 |
 | `listings` | SEC (`company_tickers_exchange.json`) | `get_exchange_listings(tickers=None)` | ticker -> 交易所映射；不传 `tickers` 时返回 SEC 公布的全部挂牌记录 |
+| `roe` | SEC EDGAR (edgartools) | `get_roe(ticker, years=1)` / `get_roe_batch()` | 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票 |
+
+## ROE
+
+计算口径：
+
+```text
+ROE = 净利润 / 平均股东权益
+平均股东权益 = (期初股东权益 + 期末股东权益) / 2
+```
+
+净利润优先使用 `NetIncomeToCommonShareholders`，缺失时按年度退回
+`NetIncome`；股东权益使用 `AllEquityBalance`。返回列如下：
+
+| 列 | 含义 |
+| --- | --- |
+| `ticker` | 股票代码 |
+| `period_end` | 财年截止日 |
+| `net_income` | 当年净利润 |
+| `beginning_equity` | 期初股东权益 |
+| `ending_equity` | 期末股东权益 |
+| `average_equity` | 平均股东权益 |
+| `roe` | ROE 小数值，例如 `0.24` |
+| `roe_percent` | ROE 百分比，例如 `24.0` |
 
 架构上的设计取舍和为什么这么分层，见 [DESIGN.md](DESIGN.md)。
 

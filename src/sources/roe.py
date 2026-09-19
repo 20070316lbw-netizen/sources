@@ -172,6 +172,7 @@ def get_roe_batch(
 ) -> pd.DataFrame:
     """计算多只股票的 ROE；单只失败时记录警告并继续。"""
 
+    _ensure_identity()
     frames: list[pd.DataFrame] = []
     for ticker in tickers:
         try:
