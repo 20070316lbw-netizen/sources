@@ -7,12 +7,10 @@
 公开 API:
     get_sp500_constituents  -- S&P 500 现有成分股 (数据源: Wikipedia)
     get_prices              -- 历史行情 (数据源: yfinance)
-    get_fundamentals        -- 单公司财务概念时间序列 (数据源: SEC EDGAR,
-                                需要设置环境变量 EDGAR_IDENTITY)
-    get_fundamentals_batch  -- get_fundamentals 的批量版本
     get_risk_free_rate      -- 无风险利率 (数据源: FRED, 通过 pandas-datareader)
-    get_exchange_listings   -- ticker -> 交易所映射 (数据源: SEC, 需要设置
-                                环境变量 EDGAR_IDENTITY)
+
+`sources.roe` 子模块额外提供 get_roe / get_roe_batch, 基于 SEC EDGAR 年报
+计算净资产收益率, 需要设置环境变量 EDGAR_IDENTITY, 详见 README。
 """
 from __future__ import annotations
 

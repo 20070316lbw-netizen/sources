@@ -27,9 +27,7 @@ uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.1.0"
 from sources import (
     get_sp500_constituents,
     get_prices,
-    get_fundamentals,
     get_risk_free_rate,
-    get_exchange_listings,
 )
 from sources.roe import get_roe, get_roe_batch
 
@@ -39,19 +37,10 @@ universe = get_sp500_constituents()
 # 历史行情(长表): [date, ticker, open, high, low, close, adj_close, volume]
 prices = get_prices(universe["ticker"].tolist()[:20], start="2020-01-01", end="2024-01-01")
 
-# 基本面(长表): [ticker, concept, period_start, period_end,
-#               duration_days, numeric_value, fiscal_period, fiscal_year]
-# 需要先设置 EDGAR_IDENTITY, 见下方"环境变量"
-fundamentals = get_fundamentals("AAPL")
-
 # 无风险利率(长表): [date, series, value], 默认 FRED 一个月期国债利率
 riskfree = get_risk_free_rate(start="2020-01-01", end="2024-01-01")
 
-# ticker -> 交易所映射: [ticker, cik, name, exchange]
-# 同样需要先设置 EDGAR_IDENTITY
-listings = get_exchange_listings(universe["ticker"].tolist()[:20])
-
-# 单家公司最近一年的 ROE
+# 单家公司最近一年的 ROE, 需要先设置 EDGAR_IDENTITY, 见下方"环境变量"
 roe = get_roe("AAPL")
 
 # src/sources/map/first_50.py 中 50 只目标股票的 ROE
@@ -60,9 +49,8 @@ roe_50 = get_roe_batch()
 
 ## 环境变量
 
-`get_fundamentals` / `get_fundamentals_batch`、`get_roe` / `get_roe_batch`
-依赖 SEC EDGAR，`get_exchange_listings` 依赖的 SEC 批量数据文件同样要求身份
-标识——SEC 要求所有 sec.gov 请求都携带调用方身份，通过环境变量设置：
+`get_roe` / `get_roe_batch` 依赖 SEC EDGAR, 需要通过环境变量设置调用方身份
+标识——SEC 要求所有 sec.gov 请求都携带身份：
 
 ```bash
 export EDGAR_IDENTITY="Your Name your@email.com"
@@ -76,10 +64,8 @@ export EDGAR_IDENTITY="Your Name your@email.com"
 | --- | --- | --- | --- |
 | `constituents` | Wikipedia | `get_sp500_constituents()` | 只有当前成分股；历史变更表暂未实现 |
 | `prices` | Yahoo Finance (yfinance) | `get_prices(tickers, start, end)` | 支持单个或多个 ticker |
-| `fundamentals` | SEC EDGAR (edgartools) | `get_fundamentals(ticker)` / `get_fundamentals_batch(tickers)` | 默认抓 `StockholdersEquity` 和 `CommonStockSharesOutstanding`，可通过 `concepts` 参数覆盖 |
 | `riskfree` | FRED (pandas-datareader) | `get_risk_free_rate(start, end)` | 默认抓一个月期国债利率(`DGS1MO`)，年化百分比原始口径，可通过 `series` 参数换成其他 FRED 序列 |
-| `listings` | SEC (`company_tickers_exchange.json`) | `get_exchange_listings(tickers=None)` | ticker -> 交易所映射；不传 `tickers` 时返回 SEC 公布的全部挂牌记录 |
-| `roe` | SEC EDGAR (edgartools) | `get_roe(ticker, years=1)` / `get_roe_batch()` | 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票 |
+| `roe` | SEC EDGAR (edgartools) | `get_roe(ticker, years=1)` / `get_roe_batch()` | 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票；需要设置 `EDGAR_IDENTITY` |
 
 ## ROE
 
@@ -104,8 +90,6 @@ ROE = 净利润 / 平均股东权益
 | `roe` | ROE 小数值，例如 `0.24` |
 | `roe_percent` | ROE 百分比，例如 `24.0` |
 
-架构上的设计取舍和为什么这么分层，见 [DESIGN.md](DESIGN.md)。
-
 ## 开发
 
 ```bash
@@ -114,6 +98,6 @@ uv run ruff check .
 uv run pytest
 ```
 
-测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR / FRED / SEC），不需要
+测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR / FRED），不需要
 真实网络也能跑；CI（见 `.github/workflows/ci.yml`）在 push/PR 到
 `main`/`master` 时会跑同样这两步。
