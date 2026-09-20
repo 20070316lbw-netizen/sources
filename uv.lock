@@ -1302,6 +1302,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pandas-datareader" },
     { name = "requests" },
+    { name = "tqdm" },
     { name = "yfinance" },
 ]
 
@@ -1319,6 +1320,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "pandas-datareader", specifier = ">=0.11.1" },
     { name = "requests", specifier = ">=2.31.0" },
+    { name = "tqdm", specifier = ">=4.66.0" },
     { name = "yfinance", specifier = ">=1.7.0" },
 ]
 

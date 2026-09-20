@@ -115,3 +115,85 @@ def test_get_roe_batch_requires_identity_before_processing(monkeypatch):
 def test_first_50_contains_50_unique_tickers():
     assert len(tickers) == 50
     assert len(set(tickers)) == 50
+
+
+def test_calculate_roe_supports_minority_interest_equity():
+    income = _income_statement()
+    balance = pd.DataFrame(
+        {
+            "standard_concept": ["AllEquityBalanceIncludingMinorityInterest"],
+            "2024-12-31": [600.0],
+            "2023-12-31": [400.0],
+        }
+    )
+    result = calculate_roe("PG", income, balance)
+
+    assert result.loc[0, "ticker"] == "PG"
+    assert result.loc[0, "net_income"] == 120.0
+    assert result.loc[0, "average_equity"] == 500.0
+    assert result.loc[0, "roe_percent"] == 24.0
+
+
+def test_calculate_roe_falls_back_to_raw_concept():
+    income = pd.DataFrame(
+        {
+            "standard_concept": [None],
+            "concept": ["us-gaap_NetIncomeLoss"],
+            "2024-12-31": [120.0],
+            "2023-12-31": [100.0],
+        }
+    )
+    balance = pd.DataFrame(
+        {
+            "standard_concept": [None],
+            "concept": ["us-gaap_StockholdersEquity"],
+            "2024-12-31": [600.0],
+            "2023-12-31": [400.0],
+        }
+    )
+    result = calculate_roe("TEST", income, balance)
+
+    assert result.loc[0, "roe_percent"] == 24.0
+
+
+def test_calculate_roe_respects_ticker_concept_mapping(monkeypatch):
+    import sources.map.field_mapping_50 as mapping_module
+
+    monkeypatch.setattr(
+        mapping_module,
+        "TICKER_CONCEPT_MAPPING",
+        {
+            "CUSTOM": {
+                "equity": ("CustomEquityField",),
+                "net_income": ("CustomIncomeField",),
+            }
+        },
+    )
+    income = pd.DataFrame(
+        {
+            "standard_concept": ["CustomIncomeField"],
+            "2024-12-31": [120.0],
+            "2023-12-31": [100.0],
+        }
+    )
+    balance = pd.DataFrame(
+        {
+            "standard_concept": ["CustomEquityField"],
+            "2024-12-31": [600.0],
+            "2023-12-31": [400.0],
+        }
+    )
+    result = calculate_roe("CUSTOM", income, balance)
+
+    assert result.loc[0, "roe_percent"] == 24.0
+
+
+def test_get_roe_batch_supports_show_progress_flag(monkeypatch):
+    _mock_edgar(monkeypatch)
+
+    result_no_progress = get_roe_batch(["AAPL"], show_progress=False)
+    result_with_progress = get_roe_batch(["AAPL"], show_progress=True)
+
+    assert result_no_progress["ticker"].tolist() == ["AAPL"]
+    assert result_with_progress["ticker"].tolist() == ["AAPL"]
+

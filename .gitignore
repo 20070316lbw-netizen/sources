@@ -16,4 +16,5 @@ wheels/
 .ruff_cache/
 
 # 开发
-map/
+/map/
+.vscode

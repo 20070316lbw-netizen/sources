@@ -14,7 +14,9 @@ import pandas as pd
 from edgar import Company, set_identity
 from edgar.xbrl import XBRLS
 from loguru import logger
+from tqdm import tqdm
 
+from sources.map.field_mapping_50 import get_equity_concepts, get_net_income_concepts
 from sources.map.first_50 import tickers as first_50_tickers
 
 _ROE_COLUMNS = [
@@ -89,8 +91,19 @@ def _standard_values(
     """按优先顺序提取第一个可用的标准字段。"""
 
     values = pd.Series(index=periods, dtype="float64")
+    has_standard = "standard_concept" in frame.columns
+    has_raw_concept = "concept" in frame.columns
+
     for concept in concepts:
-        rows = frame.loc[frame["standard_concept"].eq(concept), periods]
+        rows = pd.DataFrame()
+        if has_standard:
+            rows = frame.loc[frame["standard_concept"].eq(concept), periods]
+
+        # 若 standard_concept 未匹配到，尝试回退匹配原始 concept 列
+        if rows.empty and has_raw_concept:
+            mask = frame["concept"].eq(concept) | frame["concept"].str.endswith(f"_{concept}")
+            rows = frame.loc[mask, periods]
+
         if rows.empty:
             continue
 
@@ -116,14 +129,17 @@ def calculate_roe(
     if len(balance_periods) < 2:
         raise ValueError("计算平均股东权益至少需要两个年度的资产负债表")
 
+    net_income_concepts = get_net_income_concepts(ticker)
+    equity_concepts = get_equity_concepts(ticker)
+
     net_income = _standard_values(
         income,
-        ("NetIncomeToCommonShareholders", "NetIncome"),
+        net_income_concepts,
         income_periods,
     )
     equity = _standard_values(
         balance,
-        ("AllEquityBalance",),
+        equity_concepts,
         balance_periods,
     )
 
@@ -169,12 +185,28 @@ def get_roe(ticker: str, years: int = 1) -> pd.DataFrame:
 def get_roe_batch(
     tickers: Iterable[str] = first_50_tickers,
     years: int = 1,
+    show_progress: bool = True,
 ) -> pd.DataFrame:
-    """计算多只股票的 ROE: 单只失败时记录警告并继续。"""
+    """计算多只股票的 ROE；单只失败时记录警告并继续。
+
+    Args:
+        tickers: 股票代码列表，默认为前 50 只标的。
+        years: 计算 ROE 的年数，默认为 1 年。
+        show_progress: 是否显示进度条，默认为 True。
+    """
 
     _ensure_identity()
+    ticker_list = list(tickers)
+    iterator = (
+        tqdm(ticker_list, desc="计算 ROE", unit="只")
+        if show_progress
+        else ticker_list
+    )
+
     frames: list[pd.DataFrame] = []
-    for ticker in tickers:
+    for ticker in iterator:
+        if show_progress and isinstance(iterator, tqdm):
+            iterator.set_postfix_str(ticker)
         try:
             result = get_roe(ticker, years=years)
         except Exception as error:  # noqa: BLE001 - 批量任务不能被单只股票中断
