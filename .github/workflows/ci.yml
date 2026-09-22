@@ -29,8 +29,10 @@ jobs:
           python-version: "3.12"
 
       # 3. 同步安装依赖 (包括 pyproject.toml 里的 dev 依赖 pytest / ruff)
+      #    --locked: 严格按 uv.lock 装, 且 lock 与 pyproject.toml 不一致时直接失败,
+      #    保证 CI 跑的依赖版本和本地完全一致 (ruff 尤其需要: 版本一变规则集就变)
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked
 
       # 4. 静态检查 (只跑 lint; 不强制 ruff format, 以免覆盖代码里刻意的对齐排版)
       - name: Run ruff

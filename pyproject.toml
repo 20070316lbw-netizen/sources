@@ -10,6 +10,7 @@ dependencies = [
     "numpy>=2.5.3",
     "pandas>=3.0.5",
     "pandas-datareader>=0.11.1",
+    "pyarrow>=21.0.0",
     "requests>=2.31.0",
     "tqdm>=4.66.0",
     "yfinance>=1.7.0",
@@ -21,6 +22,39 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    # 上界锁死: ruff 的默认规则集会随版本变化(0.6 -> 0.16 就扩了一大批),
+    # 不设上界的话某次 minor 升级就能让 CI 莫名其妙全红。
     "pytest>=9.1.1",
-    "ruff>=0.6.0",
+    "ruff>=0.16.6,<0.17",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# 显式写死规则集, 不吃 ruff 的默认值(同上: 默认值会变)。
+select = [
+    "E",    # pycodestyle 错误
+    "W",    # pycodestyle 警告
+    "F",    # pyflakes
+    "I",    # import 排序
+    "UP",   # pyupgrade: 逼着用 3.12 原生写法
+    "B",    # flake8-bugbear
+    "C4",   # 推导式写法
+    "SIM",  # 可简化的写法
+    "RUF",  # ruff 自有规则
+    "BLE",  # 禁止裸 except Exception
+    "S",    # bandit 安全检查
+]
+
+ignore = [
+    # 注释和文档字符串通篇是中文, 全角标点是本项目刻意的排版, 不是"易混淆字符"
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试里 assert 是正常写法, 不是 bandit 说的那种线上裸断言
+"test/*" = ["S101"]
