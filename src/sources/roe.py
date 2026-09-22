@@ -88,33 +88,66 @@ def _standard_values(
     concepts: tuple[str, ...],
     periods: list[str],
 ) -> pd.Series:
-    """按优先顺序提取第一个可用的标准字段。"""
+    """按优先顺序提取会计科目对应的数值。
 
-    values = pd.Series(index=periods, dtype="float64")
-    has_standard = "standard_concept" in frame.columns
-    has_raw_concept = "concept" in frame.columns
+    优先返回**单个** concept 就能覆盖全部期间的那一列: 不同 concept 对应不同
+    会计口径(如母公司口径的 AllEquityBalance vs 含少数股东权益的合并口径
+    AllEquityBalanceIncludingMinorityInterest), 跨 concept 拼出来的序列会让
+    相邻年度的 ROE 分母不可比 —— 期初权益取 A 口径、期末取 B 口径, 算出来的
+    数字没有意义。
+
+    只有在没有任何单一 concept 能覆盖全部期间时, 才退回按优先级逐列填补, 并
+    明确告警, 让调用方知道这一列是拼出来的。
+    """
+
+    matches: list[tuple[str, pd.Series]] = []
 
     for concept in concepts:
-        rows = pd.DataFrame()
-        if has_standard:
-            rows = frame.loc[frame["standard_concept"].eq(concept), periods]
-
-        # 若 standard_concept 未匹配到，尝试回退匹配原始 concept 列
-        if rows.empty and has_raw_concept:
-            mask = frame["concept"].eq(concept) | frame["concept"].str.endswith(f"_{concept}")
-            rows = frame.loc[mask, periods]
-
-        if rows.empty:
+        candidate = _concept_values(frame, concept, periods)
+        if candidate is None:
             continue
+        if candidate.notna().all():
+            return candidate
+        matches.append((concept, candidate))
 
-        concept_values = rows.apply(pd.to_numeric, errors="coerce").bfill().iloc[0]
-        values = values.fillna(concept_values)
+    values = pd.Series(index=periods, dtype="float64")
+    for _, candidate in matches:
+        values = values.fillna(candidate)
 
-    if values.notna().any():
-        return values
+    if values.isna().all():
+        names = "、".join(concepts)
+        raise ValueError(f"报表中找不到可用字段：{names}")
 
-    names = "、".join(concepts)
-    raise ValueError(f"报表中找不到可用字段：{names}")
+    if len(matches) > 1:
+        merged = "、".join(name for name, _ in matches)
+        logger.warning(
+            f"没有单一会计科目覆盖全部期间, 已按优先级拼接 {merged}; "
+            "跨口径混算可能让不同年度的 ROE 不可比"
+        )
+    return values
+
+
+def _concept_values(
+    frame: pd.DataFrame,
+    concept: str,
+    periods: list[str],
+) -> pd.Series | None:
+    """取单个 concept 在各期间的数值; 该 concept 在报表里不存在时返回 None。"""
+
+    rows = pd.DataFrame()
+    if "standard_concept" in frame.columns:
+        rows = frame.loc[frame["standard_concept"].eq(concept), periods]
+
+    # standard_concept 未命中时, 回退匹配原始 XBRL 标签(如 us-gaap_StockholdersEquity)
+    if rows.empty and "concept" in frame.columns:
+        raw = frame["concept"].astype("string").fillna("")
+        rows = frame.loc[raw.eq(concept) | raw.str.endswith(f"_{concept}"), periods]
+
+    if rows.empty:
+        return None
+
+    # 多行命中时按行向下补齐, 取合并后的第一行
+    return rows.apply(pd.to_numeric, errors="coerce").bfill().iloc[0]
 
 
 def calculate_roe(

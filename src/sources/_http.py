@@ -77,7 +77,10 @@ def get_with_retry(
             )
             time.sleep(sleep_s)
 
-    assert last_exc is not None
+    if last_exc is None:
+        # max_retries < 1 时上面的循环一次都没跑, 明确报错而不是静默返回 None。
+        # (原来这里是 assert, 但 python -O 会把 assert 整条删掉。)
+        raise ValueError(f"max_retries 必须大于等于 1, 收到: {max_retries}")
     raise last_exc
 
 

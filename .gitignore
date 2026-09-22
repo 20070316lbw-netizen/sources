@@ -18,3 +18,6 @@ wheels/
 # 开发
 /map/
 .vscode
+
+# 历史成分股本地缓存 (由 update_cache_from_web() 生成, 不入库)
+src/sources/constituents_changelog/data/
