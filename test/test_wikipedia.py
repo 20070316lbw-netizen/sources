@@ -5,7 +5,9 @@ import pytest
 
 from sources._wikipedia import (
     CHANGE_COLUMNS,
+    CHANGES_URL,
     CONSTITUENT_COLUMNS,
+    WIKI_URL,
     fetch_current_constituents,
     fetch_sp500_tables,
 )
@@ -39,7 +41,7 @@ CURRENT_TABLE = """
 CHANGES_TABLE = """
 <table>
   <tr>
-    <th rowspan="2">Date</th>
+    <th rowspan="2">Effective Date</th>
     <th colspan="2">Added</th>
     <th colspan="2">Removed</th>
     <th rowspan="2">Reason</th>
@@ -94,7 +96,16 @@ def test_changes_table_flattens_two_level_header():
     assert list(df_changes.columns) == CHANGE_COLUMNS
     # 日期解析不了的那行被丢弃
     assert len(df_changes) == 2
-    # 按日期降序
+
+
+def test_changes_table_recognizes_effective_date_header():
+    """回归测试: Wikipedia 现在把变动表的日期列标成 "Effective Date"(不是单纯
+    的 "Date"), 2024 年那版别名表只认 "date", 会导致 _pick_table 找不到必需列
+    而直接报错——这里锁死这一列必须能被正确识别成 "date"。"""
+    with _patch_response(FULL_PAGE):
+        _, df_changes = fetch_sp500_tables()
+
+    assert "date" in df_changes.columns
     assert df_changes["date"].tolist() == [
         pd.Timestamp("2024-01-22"),
         pd.Timestamp("2023-10-02"),
@@ -124,3 +135,27 @@ def test_fetch_current_constituents_tolerates_missing_changes_table():
 def test_raises_when_no_table_matches_schema():
     with _patch_response(DECOY_TABLE), pytest.raises(ValueError, match="当前成分股"):
         fetch_current_constituents()
+
+
+def test_fetch_sp500_tables_reads_changes_from_its_own_page():
+    """回归测试: 当前成分股表和历次增删变动表现在分属两个不同的 Wikipedia
+    词条(WIKI_URL / CHANGES_URL), fetch_sp500_tables 必须各自去对应页面抓,
+    而不是假设两张表还挤在同一页里(2020 年代初写这块代码时是同一页, 后来
+    Wikipedia 把变动表拆到了 "Historical components of the S&P 500" 独立词条,
+    WIKI_URL 页面上已经完全没有这张表了)。"""
+    responses = {WIKI_URL: CURRENT_TABLE, CHANGES_URL: CHANGES_TABLE}
+
+    def fake_get(url, *args, **kwargs):
+        resp = MagicMock()
+        resp.text = responses[url]
+        resp.raise_for_status.return_value = None
+        return resp
+
+    with patch("sources._http.requests.get", side_effect=fake_get):
+        df_current, df_changes = fetch_sp500_tables()
+
+    assert df_current["ticker"].tolist() == ["BRK-B", "MMM"]
+    assert df_changes["date"].tolist() == [
+        pd.Timestamp("2024-01-22"),
+        pd.Timestamp("2023-10-02"),
+    ]

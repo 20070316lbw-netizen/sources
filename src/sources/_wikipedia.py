@@ -26,6 +26,11 @@ from sources._http import get_with_retry
 
 WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 
+#: 历次增删变动表所在的页面。这张表以前跟当前成分股表在同一页, 后来 Wikipedia
+#: 把它拆到了这个独立词条里(截至这次核实, WIKI_URL 页面上已经完全没有这张表了,
+#: 章节列表里也没有对应标题——不是改了表头/移了位置那么简单, 是整个搬家了)。
+CHANGES_URL = "https://en.wikipedia.org/wiki/Historical_components_of_the_S%26P_500"
+
 #: 当前成分股表的输出 schema
 CONSTITUENT_COLUMNS = ["ticker", "name", "sector", "sub_industry", "date_added", "cik"]
 
@@ -56,6 +61,7 @@ _CONSTITUENT_ALIASES = {
 
 _CHANGE_ALIASES = {
     "date": "date",
+    "effective_date": "date",  # Wikipedia 现在把这一列标成 "Effective Date", 不是单纯的 "Date"
     "added_ticker": "added_ticker",
     "added_symbol": "added_ticker",
     "added_security": "added_name",
@@ -82,16 +88,20 @@ _PLACEHOLDER_PREFIX = "unnamed:"
 # 空单元格在转成字符串后可能长这样, 一律当成缺失
 _NULL_TOKENS = frozenset({"", "NAN", "NONE", "NA", "N/A", "NULL", "—", "–", "-"})
 
-
 def fetch_sp500_tables(
     url: str = WIKI_URL,
+    changes_url: str = CHANGES_URL,
     timeout: int = 15,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """抓取并解析 Wikipedia 上的当前成分股表与历次增删变动表。
 
+    两张表现在分属两个不同的词条(见 CHANGES_URL 的注释), 所以要发两次请求;
+    调用方一般不需要关心这个细节, 拿到的还是合并好的 (df_current, df_changes)。
+
     Args:
-        url: Wikipedia 页面地址, 默认为官方标普500词条。
-        timeout: 单次 HTTP 请求超时秒数。
+        url: 当前成分股表所在页面, 默认为官方标普500词条。
+        changes_url: 历次增删变动表所在页面, 默认 CHANGES_URL。
+        timeout: 单次 HTTP 请求超时秒数(两次请求各自计时)。
 
     Returns:
         (df_current, df_changes) 二元组:
@@ -99,15 +109,19 @@ def fetch_sp500_tables(
             - df_changes: 列为 CHANGE_COLUMNS, 按 date 降序(最近的在最前)。
 
     Raises:
-        ValueError: 页面里找不到符合 schema 的表(通常意味着 Wikipedia 改版了)。
+        ValueError: 某张页面里找不到符合 schema 的表(通常意味着 Wikipedia 改版了)。
         requests.RequestException: 网络请求失败, 见 _http.get_with_retry。
     """
-    tables = _read_tables(url, timeout)
+    current_tables = _read_tables(url, timeout)
     df_current = _parse_current(
-        _pick_table(tables, _CONSTITUENT_ALIASES, _CONSTITUENT_REQUIRED, "当前成分股")
+        _pick_table(current_tables, _CONSTITUENT_ALIASES, _CONSTITUENT_REQUIRED, "当前成分股")
+    )
+
+    change_tables = (
+        current_tables if changes_url == url else _read_tables(changes_url, timeout)
     )
     df_changes = _parse_changes(
-        _pick_table(tables, _CHANGE_ALIASES, _CHANGE_REQUIRED, "成分股变动")
+        _pick_table(change_tables, _CHANGE_ALIASES, _CHANGE_REQUIRED, "成分股变动")
     )
     logger.info(f"解析到 {len(df_current)} 只当前成分股, {len(df_changes)} 条增删记录")
     return df_current, df_changes
