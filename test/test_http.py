@@ -47,3 +47,18 @@ def test_exhausts_retries_and_raises(mock_get, mock_sleep):
         get_with_retry("https://example.com", max_retries=3)
 
     assert mock_get.call_count == 3
+
+
+@patch("sources._http.time.sleep", return_value=None)
+@patch("sources._http.requests.get")
+def test_retries_on_429_rate_limit(mock_get, mock_sleep):
+    limited = MagicMock()
+    limited.raise_for_status.side_effect = requests.HTTPError(
+        response=MagicMock(status_code=429)
+    )
+    ok_resp = MagicMock()
+    ok_resp.raise_for_status.return_value = None
+    mock_get.side_effect = [limited, ok_resp]
+
+    assert get_with_retry("https://example.com", max_retries=3) is ok_resp
+    assert mock_get.call_count == 2

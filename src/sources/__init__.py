@@ -13,8 +13,10 @@
     get_sp500_changelog              -- 历次增删变动明细
     update_cache_from_web            -- 刷新上面三个函数依赖的本地缓存
 
-`sources.roe` 子模块额外提供 get_roe / get_roe_batch, 基于 SEC EDGAR 年报
-计算净资产收益率, 需要设置环境变量 EDGAR_IDENTITY, 详见 README。
+`sources.sec` 子包直接请求 SEC 的 XBRL companyfacts 接口, 提供带申报日期的
+标准化基本面(get_fundamentals / get_fundamentals_batch), 供 liudb 做点时数据;
+`sources.roe` 在其上计算年度 ROE(get_roe / get_roe_batch)。SEC 身份标识默认
+"liu 20070316lbw@gmail.com", 可用环境变量 EDGAR_IDENTITY 覆盖, 详见 README。
 
 点时反推相关的函数依赖本地缓存, 首次使用需要先跑一次 update_cache_from_web();
 缓存目录可用环境变量 SOURCES_DATA_DIR 指定。

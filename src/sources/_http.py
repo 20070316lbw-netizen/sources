@@ -3,8 +3,8 @@
 统一 User-Agent、超时与一个保守的重试策略, 供包内直接用 requests 抓取网页/接口
 的数据源(目前是 constituents.py)使用。
 
-注意: yfinance / edgartools 这类第三方库自己管理 HTTP 会话和重试, 不经过这里;
-这个模块只服务于我们自己直接发起的 requests 调用。
+注意: yfinance 这类第三方库自己管理 HTTP 会话和重试, 不经过这里; 这个模块只服务
+于我们自己直接发起的 requests 调用(Wikipedia、SEC 等)。
 """
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from typing import Any
 
 import requests
 from loguru import logger
+
+_TOO_MANY_REQUESTS = 429
 
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -35,8 +37,9 @@ def get_with_retry(
 ) -> requests.Response:
     """带重试的 GET 请求。
 
-    只对"确认是瞬时性"的失败重试: 连接/超时错误, 或明确的 5xx 响应。
-    4xx(以及任何拿不到状态码的 HTTPError)被当作确定性错误, 立即抛出,
+    只对"确认是瞬时性"的失败重试: 连接/超时错误, 明确的 5xx 响应, 以及 429
+    (限流, 如 SEC 超过每秒 10 次)。其余 4xx(以及任何拿不到状态码的 HTTPError)
+    被当作确定性错误, 立即抛出,
     这样调用方能第一时间定位问题, 而不是白等几次重试。
 
     Args:
@@ -63,8 +66,8 @@ def get_with_retry(
             return resp
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else None
-            if status is None or status < 500:
-                raise  # 4xx 或状态码未知: 不重试, 直接抛出
+            if status is None or (status < 500 and status != _TOO_MANY_REQUESTS):
+                raise  # 429 以外的 4xx 或状态码未知: 不重试, 直接抛出
             last_exc = e
         except requests.RequestException as e:
             last_exc = e
@@ -85,22 +88,19 @@ def get_with_retry(
 
 
 _SEC_IDENTITY_ENV = "EDGAR_IDENTITY"
+DEFAULT_SEC_IDENTITY = "liu 20070316lbw@gmail.com"
+
+
+def sec_identity() -> str:
+    """返回访问 sec.gov 用的身份标识: 环境变量 EDGAR_IDENTITY 优先, 否则用默认值。
+
+    SEC 要求所有自动化访问都在 User-Agent 里带上能联系到调用方的身份
+    (名字 + 邮箱), 否则直接 403。
+    """
+    identity = os.environ.get(_SEC_IDENTITY_ENV, "").strip()
+    return identity or DEFAULT_SEC_IDENTITY
 
 
 def sec_identity_headers() -> dict[str, str]:
-    """返回带 SEC 要求的身份标识的请求头, 用于我们自己直接发起的 sec.gov 请求。
-
-    SEC 对 sec.gov 的自动化访问(不只是 EDGAR filing API, 批量数据文件同样
-    适用)要求携带能标识调用方的 User-Agent。复用 EDGAR_IDENTITY 环境变量,
-    与 fundamentals.py 里 edgartools 用的是同一个身份, 避免用户设两遍。
-
-    Raises:
-        RuntimeError: 未设置 EDGAR_IDENTITY 环境变量。
-    """
-    identity = os.environ.get(_SEC_IDENTITY_ENV)
-    if not identity:
-        raise RuntimeError(
-            f"未设置环境变量 {_SEC_IDENTITY_ENV}。SEC 要求所有 sec.gov 请求携带身份标识, "
-            f'请先设置, 例如: export {_SEC_IDENTITY_ENV}="Your Name your@email.com"'
-        )
-    return {"User-Agent": identity}
+    """返回带 SEC 要求的身份标识的请求头, 用于我们自己直接发起的 sec.gov 请求。"""
+    return {"User-Agent": sec_identity(), "Accept-Encoding": "gzip, deflate"}

@@ -4,10 +4,10 @@
 
 个人量化数据抓取包, 准备原始数据。
 
-**从各数据源抓取原始数据、做字段级初步清洗，并基于 SEC 年报计算 ROE**
+**从各数据源抓取原始数据、做字段级初步清洗；美股基本面直接请求 SEC 官方接口，带申报日期，可做点时(PIT)数据**
 
 基础数据模块负责改列名、转类型和丢弃明显无效的行，不做跨数据源合并或
-本地存储。`roe` 模块额外提供净资产收益率计算。
+本地存储。`sec` 子包提供带申报日期的美股基本面, `roe` 模块在其上计算净资产收益率。
 
 ## 安装
 
@@ -44,12 +44,59 @@ prices = get_prices(universe["ticker"].tolist()[:20], start="2020-01-01", end="2
 # 无风险利率(长表): [date, series, value], 默认 FRED 一个月期国债利率
 riskfree = get_risk_free_rate(start="2020-01-01", end="2024-01-01")
 
-# 单家公司最近一年的 ROE, 需要先设置 EDGAR_IDENTITY, 见下方"环境变量"
+# 单家公司最近一年的 ROE(数据来自 SEC 10-K, 见下方"SEC 基本面")
 roe = get_roe("AAPL")
 
 # src/sources/map/first_50.py 中 50 只目标股票的 ROE
 roe_50 = get_roe_batch()
 ```
+
+### SEC 基本面(点时, 直接请求 SEC, 不依赖 edgartools)
+
+```python
+from sources.sec import FIELDS, get_fundamentals, get_fundamentals_batch
+
+facts = get_fundamentals("AAPL")                         # 全部标准字段, 一次请求
+facts = get_fundamentals("AAPL", ["revenue", "net_income", "total_equity"])
+batch = get_fundamentals_batch(["AAPL", "MSFT", "BRK-B"])  # 单只失败只打 warning
+old = get_fundamentals("TWTR", cik=1418091)              # 已退市: 直接给 CIK
+```
+
+数据源是 SEC 的 XBRL companyfacts 接口
+(`https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`), 一家公司一次
+请求拿到 2009 年以来所有 10-K / 10-Q(含修订版)里的数值。返回长表, 一行是
+"某份申报文件对某个期间报告的某个标准字段的值":
+
+| 列 | 含义 |
+| --- | --- |
+| `ticker` / `cik` | 代码(原样, 如 `BRK-B`) / 10 位 CIK |
+| `field` / `concept` | 标准字段名 / 实际命中的 XBRL 科目(如 `us-gaap:Revenues`) |
+| `unit` | `USD` / `shares` / `USD/shares` |
+| `period_start` / `period_end` | 期间起止; 时点型(资产负债表)的 `period_start` 为空 |
+| `period_months` | 0 = 时点, 3 / 6 / 9 / 12 = 期间长度(52/53 周财年也归到这几档) |
+| `value` | 数值 |
+| `fy` / `fp` / `form` | **申报文件**的财年 / 期间 / 表单(不一定是这行数据本身的期间) |
+| `accn` / `filed` | 文件号 / 申报日——点时查询就按 `filed` 做 as-of |
+| `derived` | 是否为推导出来的单季值, 见下 |
+
+要点:
+
+- **所有版本都保留**: 同一期间在当期报告、之后作为比较期、重述时各出现一次,
+  `accn`/`filed` 不同。存进 liudb 后按 `filed <= t` 取最新版本, 就是 t 时点
+  真实能看到的数字。
+- **标准字段**见 `sources.sec.FIELDS`(收入、毛利、营业利润、净利润、EPS、总资产、
+  权益、现金、负债、经营现金流、资本开支、分红、回购等 25 个), 每个字段按优先级
+  列了候选科目, 同一份文件内按优先级取一个。个股用非标科目时在
+  `sources.sec.TICKER_FIELD_OVERRIDES` 里覆盖。
+- **单季推导**: 10-Q 的现金流量表只有年初至今累计值, 10-K 只有全年值, 很多单季
+  (Q4、现金流的 Q2/Q3)没有直接报告。对金额类字段用"本份文件的累计值 − 当时已知
+  的上一个累计值"推出 3 个月值, `derived=True`, `filed` 沿用被减数所在文件,
+  不引入未来数据。EPS、加权股数不推导。
+- **ticker → CIK** 用 SEC 的 `company_tickers.json`, 只覆盖当前仍在申报的公司;
+  已退市/被收购的传 `cik=`。控股重组换了申报主体的(Alphabet、迪士尼、
+  ExxonMobil)前身 CIK 登记在 `sources.sec.PREDECESSOR_CIKS`, 会自动一并抓取。
+- **限速**: SEC 上限每秒 10 次, 这里全局限在约每秒 8 次, 429 / 5xx 自动退避重试。
+  S&P 500 全量约 500 次请求, 几分钟。
 
 ### 历史成分股(点时反推)
 
@@ -110,14 +157,12 @@ with session():  # 批量调用时只登录一次 BaoStock
 
 ## 环境变量
 
-`get_roe` / `get_roe_batch` 依赖 SEC EDGAR, 需要通过环境变量设置调用方身份
-标识——SEC 要求所有 sec.gov 请求都携带身份：
+SEC 要求所有 sec.gov 请求在 User-Agent 里带上调用方身份(名字 + 邮箱)。默认使用
+`liu 20070316lbw@gmail.com`, 需要换成别的身份时设置:
 
 ```bash
 export EDGAR_IDENTITY="Your Name your@email.com"
 ```
-
-如果没有设置的话会直接抛 `RuntimeError` 并提示怎么设置.
 
 历史成分股缓存默认写在包内的 `src/sources/constituents_changelog/data/`。包被装
 到只读目录(或希望多个项目共用一份缓存)时, 用 `SOURCES_DATA_DIR` 指定位置——
@@ -141,7 +186,8 @@ export BAOSTOCK_API_KEY="bs-..."
 | `constituents_changelog` | Wikipedia | `get_historical_sp500_constituents(as_of)` / `get_sp500_changelog()` / `get_all_historical_sp500_tickers()` | 点时反推历史名单, 规避幸存者偏差；依赖 `update_cache_from_web()` 生成的本地缓存 |
 | `prices` | Yahoo Finance (yfinance) | `get_prices(tickers, start, end)` | 支持单个或多个 ticker |
 | `riskfree` | FRED (pandas-datareader) | `get_risk_free_rate(start, end)` | 默认抓一个月期国债利率(`DGS1MO`)，年化百分比原始口径，可通过 `series` 参数换成其他 FRED 序列 |
-| `roe` | SEC EDGAR (edgartools) | `get_roe(ticker, years=1)` / `get_roe_batch()` | 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票；需要设置 `EDGAR_IDENTITY` |
+| `sec` | SEC XBRL companyfacts | `get_fundamentals(ticker, fields)` / `get_fundamentals_batch(...)` / `get_company_facts(...)` | 标准化基本面长表, 带申报日期, 供 liudb 做点时数据 |
+| `roe` | SEC XBRL companyfacts | `get_roe(ticker, years=1)` / `get_roe_batch()` | 基于 `sources.sec`; 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票 |
 | `cn.prices` | BaoStock | `get_cn_prices(tickers, start, end)` / `get_cn_daily_bars(...)` | A 股日线; 前者列同 `get_prices`, 后者多出停牌/ST/成交额/换手/涨跌幅 |
 | `cn.index_members` | BaoStock | `get_cn_index_members(index, date)` / `get_cn_index_members_history(...)` | 指数成分快照, 目前只支持沪深300 |
 | `cn.trade_calendar` | BaoStock | `get_cn_trade_calendar(start, end)` | A 股交易日历 |
@@ -156,13 +202,12 @@ ROE = 净利润 / 平均股东权益
 平均股东权益 = (期初股东权益 + 期末股东权益) / 2
 ```
 
-净利润与股东权益的会计科目按 `map/field_mapping_50.py` 里的优先级列表逐个尝试,
-**优先选用单个科目就能覆盖全部年度的那一个**：不同科目对应不同会计口径(如母公司
-口径的 `AllEquityBalance` vs 含少数股东权益的合并口径
-`AllEquityBalanceIncludingMinorityInterest`)，期初取 A 口径、期末取 B 口径算出来
-的 ROE 没有可比性。只有在没有任何单一科目覆盖全部年度时才按优先级拼接，并打
-warning 提示该列是拼出来的。个别用非标科目的股票可以在 `TICKER_CONCEPT_MAPPING`
-里单独指定优先级。返回列如下：
+数据来自 `sources.sec`, 每个财年的净利润、期末权益、期初权益都取自**同一份
+10-K**(10-K 的资产负债表同时列出本年末和上年末), 保证分子分母口径一致; 同一财年
+有多份"本年"申报(如 10-K/A 重述)时取最新的。净利润优先取归母口径
+`NetIncomeLoss`, 股东权益优先取归母口径 `StockholdersEquity`, 没有时才退到含
+少数股东权益的合并口径; 期初/期末用了不同科目时会打 warning。个股可在
+`sources.sec.TICKER_FIELD_OVERRIDES` 里指定科目。返回列如下：
 
 | 列 | 含义 |
 | --- | --- |
@@ -183,7 +228,7 @@ uv run ruff check .
 uv run pytest
 ```
 
-测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / EDGAR / FRED），不需要
+测试全部通过 mock 隔离外部网络调用（Wikipedia / yfinance / SEC / FRED），不需要
 真实网络也能跑；CI（见 `.github/workflows/ci.yml`）在 push/PR 到
 `main`/`master` 时会跑同样这两步。
 
