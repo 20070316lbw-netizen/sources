@@ -18,6 +18,9 @@
 
 点时反推相关的函数依赖本地缓存, 首次使用需要先跑一次 update_cache_from_web();
 缓存目录可用环境变量 SOURCES_DATA_DIR 指定。
+
+A 股数据(数据源 BaoStock)在 `sources.cn` 子包里: get_cn_prices / get_cn_daily_bars
+/ get_cn_trade_calendar / get_cn_stock_basic / get_cn_index_members 等, 详见其文档。
 """
 from __future__ import annotations
 
