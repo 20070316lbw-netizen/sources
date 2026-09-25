@@ -6,6 +6,7 @@
 公开 API:
     get_cn_prices                 -- 日线, 列与 sources.get_prices 一致(adj_close 为后复权)
     get_cn_daily_bars             -- 日线 + 成交额/前收/换手/涨跌幅/停牌/ST 标记
+    get_cn_intraday_bars          -- 分钟线(5/15/30/60), ts 为 bar 结束时间; 个股/ETF, 无指数
     get_cn_trade_calendar         -- 交易日历
     get_cn_stock_basic            -- 证券基本资料(上市/退市日期, 含已退市)
     get_cn_index_members          -- 某一天的指数成分快照(目前只支持沪深300)
@@ -20,6 +21,7 @@ from __future__ import annotations
 from sources.cn._baostock import BaostockError, session
 from sources.cn.codes import normalize_ticker
 from sources.cn.index_members import get_cn_index_members, get_cn_index_members_history
+from sources.cn.intraday import get_cn_intraday_bars
 from sources.cn.prices import get_cn_daily_bars, get_cn_prices
 from sources.cn.stock_basic import get_cn_stock_basic
 from sources.cn.trade_calendar import get_cn_trade_calendar
@@ -29,6 +31,7 @@ __all__ = [
     "get_cn_daily_bars",
     "get_cn_index_members",
     "get_cn_index_members_history",
+    "get_cn_intraday_bars",
     "get_cn_prices",
     "get_cn_stock_basic",
     "get_cn_trade_calendar",
