@@ -189,6 +189,7 @@ export BAOSTOCK_API_KEY="bs-..."
 | `sec` | SEC XBRL companyfacts | `get_fundamentals(ticker, fields)` / `get_fundamentals_batch(...)` / `get_company_facts(...)` | 标准化基本面长表, 带申报日期, 供 liudb 做点时数据 |
 | `roe` | SEC XBRL companyfacts | `get_roe(ticker, years=1)` / `get_roe_batch()` | 基于 `sources.sec`; 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票 |
 | `cn.prices` | BaoStock | `get_cn_prices(tickers, start, end)` / `get_cn_daily_bars(...)` | A 股日线; 前者列同 `get_prices`, 后者多出停牌/ST/成交额/换手/涨跌幅 |
+| `cn.intraday` | BaoStock | `get_cn_intraday_bars(tickers, start, end, freq="30")` | A 股分钟线(5/15/30/60), `ts` 为 bar 结束时间; 个股 2020 年起, ETF 多为 2026 年起, 指数无 |
 | `cn.index_members` | BaoStock | `get_cn_index_members(index, date)` / `get_cn_index_members_history(...)` | 指数成分快照, 目前只支持沪深300 |
 | `cn.trade_calendar` | BaoStock | `get_cn_trade_calendar(start, end)` | A 股交易日历 |
 | `cn.stock_basic` | BaoStock | `get_cn_stock_basic(tickers=None)` | 证券基本资料, 含上市/退市日期 |

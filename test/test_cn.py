@@ -10,6 +10,7 @@ from sources.cn import (
     get_cn_daily_bars,
     get_cn_index_members,
     get_cn_index_members_history,
+    get_cn_intraday_bars,
     get_cn_prices,
     get_cn_stock_basic,
     get_cn_trade_calendar,
@@ -17,6 +18,7 @@ from sources.cn import (
     session,
 )
 from sources.cn.codes import from_baostock_code, to_baostock_code
+from sources.cn.intraday import INTRADAY_COLUMNS
 
 _PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
 
@@ -323,3 +325,89 @@ def test_index_members_history(fake_bs):
     assert sorted(df["date"].unique()) == list(expected)
     assert len(df) == 6
     assert fake_bs.logins == 1
+
+
+# ---------------------------------------------------------------- intraday
+
+_INTRADAY_FIELDS = ["date", "time", "code", "open", "high", "low", "close", "volume", "amount"]
+
+
+def _intraday_response(failing=(), empty=()):
+    def respond(code, fields, *, start_date, end_date, frequency, adjustflag):
+        if code in failing:
+            return FakeResult([], [], error_code="10004011", error_msg="code err")
+        if code in empty:
+            return FakeResult(_INTRADAY_FIELDS, [])
+        if adjustflag == "1":
+            return FakeResult(
+                ["time", "close"],
+                [[["20260921100000000", "46.0"], ["20260921103000000", "45.9"]]],
+            )
+        return FakeResult(_INTRADAY_FIELDS, [[
+            ["2026-09-21", "20260921103000000", code, "4.599", "4.607", "4.594", "4.596",
+             "35722100", "164313754.0"],
+            ["2026-09-21", "20260921100000000", code, "4.586", "4.614", "4.586", "4.598",
+             "234271620", "1079208294.0"],
+            ["2026-09-21", "bad", code, "1", "1", "1", "1", "1", "1"],
+            ["2026-09-21", "20260921110000000", code, "", "", "", "", "", ""],
+        ]])
+
+    return respond
+
+
+def test_intraday_cleans_and_merges(fake_bs):
+    fake_bs.responses["query_history_k_data_plus"] = _intraday_response()
+
+    df = get_cn_intraday_bars("sh.510300", start="2026-09-21", end="2026-09-21")
+
+    assert list(df.columns) == INTRADAY_COLUMNS
+    # "bad" 时间与 close 为空的两行被丢弃; 乱序输入按 ts 排好
+    assert df["ts"].tolist() == pd.to_datetime(
+        ["2026-09-21 10:00:00", "2026-09-21 10:30:00"]
+    ).tolist()
+    first = df.iloc[0]
+    assert first["ticker"] == "510300.SH"
+    assert first["close"] == 4.598
+    assert first["adj_close"] == 46.0
+    assert first["volume"] == 234271620
+    assert first["amount"] == 1079208294.0
+    # 不复权 + 后复权两次请求, 频率透传
+    assert {c[2]["adjustflag"] for c in fake_bs.calls} == {"1", "3"}
+    assert {c[2]["frequency"] for c in fake_bs.calls} == {"30"}
+    assert fake_bs.calls[0][1][0] == "sh.510300"
+    assert fake_bs.calls[0][2]["end_date"] == "2026-09-21"
+
+
+def test_intraday_accepts_int_freq(fake_bs):
+    fake_bs.responses["query_history_k_data_plus"] = _intraday_response()
+    get_cn_intraday_bars("510300.SH", start="2026-09-21", freq=60)
+    assert {c[2]["frequency"] for c in fake_bs.calls} == {"60"}
+
+
+@pytest.mark.parametrize("freq", ["d", "1", "120", 45])
+def test_intraday_rejects_bad_freq(freq):
+    with pytest.raises(ValueError, match="不支持的 freq"):
+        get_cn_intraday_bars("510300.SH", start="2026-09-21", freq=freq)
+
+
+def test_intraday_skips_failing_and_empty(fake_bs):
+    fake_bs.responses["query_history_k_data_plus"] = _intraday_response(
+        failing={"sz.159915"}, empty={"sh.000300"},
+    )
+    df = get_cn_intraday_bars(
+        ["510300.SH", "159915.SZ", "000300.SH"], start="2026-09-21",
+    )
+    assert set(df["ticker"]) == {"510300.SH"}
+    assert fake_bs.logins == 1
+
+
+def test_intraday_all_empty_keeps_schema(fake_bs):
+    fake_bs.responses["query_history_k_data_plus"] = FakeResult(_INTRADAY_FIELDS, [])
+    df = get_cn_intraday_bars("000300.SH", start="2026-09-21")
+    assert df.empty
+    assert list(df.columns) == INTRADAY_COLUMNS
+
+
+def test_intraday_empty_tickers_raises():
+    with pytest.raises(ValueError):
+        get_cn_intraday_bars([], start="2026-09-21")
