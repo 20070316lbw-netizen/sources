@@ -15,6 +15,15 @@
       后复权的历史值不变, 按 (ticker, date) 覆盖写入是安全的, 算出的收益率
       与前复权相同。
 
+BaoStock 对 ETF(基金)的两个已知问题(2026-09 实测, 本模块原样透传, 不做修正):
+    - adj_close **没有复权**: ETF 的后复权价恒等于不复权价, 除息日会出现一次
+      虚假下跌(如 510300.SH 2026-01-19 除息 2.53%)。需要复权时请用交易所给的
+      pre_close 自行推算: 除息日因子 = 上一日 close / 当日 pre_close, 逐日连乘。
+      个股的 adj_close 正常。
+    - is_st **恒为 True**: BaoStock 对 ETF 的 isST 字段返回 "1"。判断 ST 时请
+      只对 sec_type == "stock" 的证券使用该字段(见 get_cn_stock_basic)。
+    分钟线(sources.cn.intraday)的 adj_close 对 ETF 同样没有复权。
+
 初步清洗:
     - 代码统一为 `600519.SH` 格式(见 sources.cn.codes);
     - date 转为不带时区的时间戳; 数值列强制转数值, BaoStock 的空字符串变 NaN;

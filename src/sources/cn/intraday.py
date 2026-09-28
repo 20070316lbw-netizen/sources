@@ -12,6 +12,12 @@
 复权口径与日线(sources.cn.prices)一致:
     open/high/low/close 不复权; adj_close 是后复权收盘价(历史值不随除权改写,
     增量入库时按 (ticker, ts) 覆盖写入是安全的)。
+    注意: BaoStock 对 ETF 不做复权, ETF 的 adj_close 恒等于 close, 详见
+    sources.cn.prices 模块文档里的 "已知问题"。
+
+交易所口径差异: 上交所 ETF 当天最后一根 bar 的 close(最后成交价)与日线的
+    官方收盘价可能相差几个基点, 深交所一致。涨跌停、盯市请以日线收盘价 /
+    次日 pre_close 为准。
 
 覆盖范围(2026-09 实测, BaoStock 侧的限制, 不是本模块的问题):
     - 个股: 2020 年起;
@@ -20,6 +26,9 @@
     所以 ETF 需要每日增量抓取、自己积累历史。
 
 单位: volume 为股(ETF 为份), amount 为元。amount / volume 即该 bar 的成交均价。
+volume 为 0 的 bar 是真实存在的, 不是缺数据: 例如 QDII ETF(513100.SH)溢价过高时
+    会被交易所盘中临时停牌, 当天 10:00 / 10:30 两根 bar 的成交量为 0。回测时这类
+    bar 应视为不可成交。
 单只证券抓取失败或无数据只记录 warning 并跳过, 不影响批次里的其他证券。
 """
 from __future__ import annotations
