@@ -18,13 +18,14 @@ BaoStock 是进程级全局会话, 这些函数各自会登录/登出; 批量调
 """
 from __future__ import annotations
 
-from sources.cn._baostock import BaostockError, session
-from sources.cn.codes import normalize_ticker
-from sources.cn.index_members import get_cn_index_members, get_cn_index_members_history
-from sources.cn.intraday import get_cn_intraday_bars
-from sources.cn.prices import get_cn_daily_bars, get_cn_prices
-from sources.cn.stock_basic import get_cn_stock_basic
-from sources.cn.trade_calendar import get_cn_trade_calendar
+from sources.ashare import _baostock
+from sources.ashare._baostock import BaostockError, session
+from sources.ashare.calendar import get_cn_trade_calendar
+from sources.ashare.codes import normalize_ticker
+from sources.ashare.constituents import get_cn_index_members, get_cn_index_members_history
+from sources.ashare.intraday import get_cn_intraday_bars
+from sources.ashare.prices import get_cn_daily_bars, get_cn_prices
+from sources.ashare.stock_basic import get_cn_stock_basic
 
 __all__ = [
     "BaostockError",
