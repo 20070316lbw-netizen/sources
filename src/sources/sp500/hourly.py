@@ -7,15 +7,20 @@ from datetime import date
 import pandas as pd
 
 from sources.sp500.cache import load_members
+from sources.sp500.calendar import get_trade_calendar
 from sources.sp500.prices import get_prices
 
 
 class HourSp500:
     """面向 S&P 500 小时频行情的组合接口, 默认使用缓存的当前成分股名单。"""
 
-    def members(self, *, refresh: bool = False) -> pd.DataFrame:
-        """读取当前 S&P 500 名单; refresh=True 时从 Wikipedia 刷新缓存。"""
-        return load_members(refresh=refresh)
+    def members(self) -> pd.DataFrame:
+        """读取缓存的当前 S&P 500 名单。"""
+        return load_members()
+
+    def calendar(self, start: str | date, end: str | date | None = None) -> pd.DataFrame:
+        """读取美股交易日历, 每个自然日标记是否为 NYSE 交易日。"""
+        return get_trade_calendar(start=start, end=end)
 
     def prices(
         self,

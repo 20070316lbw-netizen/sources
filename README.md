@@ -13,6 +13,7 @@ src/sources/
 │   ├── hourly.py          # HourSp500
 │   ├── cache/             # S&P 500 成员名单缓存
 │   │   └── changelog/     # 历史成分股名单和变更记录
+│   ├── calendar.py        # NYSE 交易日历
 │   ├── prices.py
 │   ├── riskfree.py
 │   ├── sec/
@@ -38,13 +39,20 @@ from sources import DailySp500, HourSp500, DailyAShare, HourAShare
 
 市场类默认从缓存成员名单取得标的，也允许调用方显式传入股票代码。成员名单缓存与行情结果缓存是不同职责；本次整理的默认名单缓存不代表行情数据也由本包持久化。
 
-缓存文件缺失时会从对应数据源抓取；后续默认复用缓存，调用 `members(refresh=True)` 显式刷新。S&P 500 当前名单与历史成分共用一份缓存，默认放在包内 `sp500/cache/changelog/data/`；A 股成分名单写入 `~/.cache/sources/ashare/`。设置 `SOURCES_DATA_DIR` 可统一指定可写缓存目录。
+缓存文件缺失时会从对应数据源抓取；后续默认复用缓存。需要手动更新时，调用 `update_sp500_members()` 或 `update_ashare_members()`，分别刷新美股和 A 股名单。S&P 500 当前名单与历史成分共用一份缓存，默认放在包内 `sp500/cache/changelog/data/`；A 股成分名单写入 `~/.cache/sources/ashare/`。设置 `SOURCES_DATA_DIR` 可统一指定可写缓存目录。
+
+成员名单缓存目前没有自动过期机制，需由使用方在需要时手动更新。
 
 ```python
 from sources import DailySp500, HourSp500, DailyAShare, HourAShare
+from sources import update_ashare_members, update_sp500_members
 
 daily_sp500 = DailySp500()
 daily_prices = daily_sp500.prices()  # 默认最近十年, 使用缓存的当前成分股
+sp500_calendar = daily_sp500.calendar("2025-01-01", "2025-01-31")
+
+update_sp500_members()  # 手动更新美股名单
+update_ashare_members()  # 手动更新 A 股名单
 
 hour_ashare = HourAShare()
 hour_prices = hour_ashare.prices(start="2026-01-01")  # BaoStock 60 分钟线
@@ -89,12 +97,13 @@ A 股默认名单目前是 BaoStock 支持的沪深 300 成分快照。S&P 500 �
 - [x] 盘点现有模块、清洗逻辑和相关测试。
 - [x] 将原使用文档保留到 `docs/usage.md`。
 - [x] 建立市场目录入口，并增加四个市场/频率组合类。
-- [x] 建立成员名单缓存入口；缺失时抓取，显式刷新，失败时不写入空缓存。
+- [x] 建立成员名单缓存入口；缺失时初始化缓存，手动刷新失败时不写入空缓存。
 - [x] 将 A 股底层实现迁入 `ashare/`，保留 `sources.cn` 兼容导入。
 - [x] 将 S&P 500 行情、基本面、成分股与历史缓存实现迁入 `sp500/`，保留旧导入路径。
-- [ ] 明确缓存过期策略；当前缓存不会自动过期。
+- [x] 将成员名单手动更新拆成美股和 A 股独立入口；读取接口只读缓存。
+- [ ] 决定缓存自动过期策略；当前名单缓存需手动更新。
 - [x] 从 `sources` 顶层导出四个类；旧函数导入路径暂时保留。
-- [ ] 补齐 S&P 500 交易日历组件；当前仓库没有独立的交易日历实现。
+- [x] 补齐基于 XNYS 交易所日历的 S&P 500 交易日历组件。
 - [ ] 将旧版使用文档逐步更新为组合类示例。
 - [x] 为四个组合类和 S&P 500 成员缓存增加专门测试；全套 133 项测试通过。
 - [x] 用 `DailySp500` 执行一次真实日线抓取，记录返回数据范围与完整度。

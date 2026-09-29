@@ -11,19 +11,18 @@ from sources.ashare.constituents import get_cn_index_members
 _COLUMNS = ["index_code", "date", "ticker", "name", "update_date"]
 
 
-def load_members(index: str = "hs300", *, refresh: bool = False) -> pd.DataFrame:
-    """读取指定指数的成分名单缓存, 首次调用或 refresh=True 时从 BaoStock 更新。
+def load_members(index: str = "hs300") -> pd.DataFrame:
+    """读取指定指数的成分名单缓存, 缓存缺失时从 BaoStock 初始化。
 
     Args:
         index: 当前支持 ``hs300`` 或 ``000300.SH``。
-        refresh: 为 True 时忽略旧缓存并重新抓取名单。
 
     Returns:
         DataFrame, 列为 [index_code, date, ticker, name, update_date]。
     """
     key = _index_key(index)
     path = _cache_path(key)
-    if not refresh and path.exists():
+    if path.exists():
         frame = pd.read_csv(path)
         frame["date"] = pd.to_datetime(frame["date"])
         frame["update_date"] = pd.to_datetime(frame["update_date"])
@@ -31,6 +30,17 @@ def load_members(index: str = "hs300", *, refresh: bool = False) -> pd.DataFrame
 
     members = get_cn_index_members(index=index)[_COLUMNS]
     if not members.empty:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        members.to_csv(path, index=False)
+    return members
+
+
+def update_members(index: str = "hs300") -> pd.DataFrame:
+    """从 BaoStock 手动更新指定指数的成分名单缓存并返回名单。"""
+    key = _index_key(index)
+    members = get_cn_index_members(index=index)[_COLUMNS]
+    if not members.empty:
+        path = _cache_path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         members.to_csv(path, index=False)
     return members

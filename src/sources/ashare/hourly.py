@@ -13,9 +13,9 @@ from sources.ashare.intraday import get_intraday_bars
 class HourAShare:
     """面向 A 股小时频数据的组合接口, 实际调用 BaoStock 60 分钟线。"""
 
-    def members(self, *, refresh: bool = False, index: str = "hs300") -> pd.DataFrame:
-        """读取指数成分名单; refresh=True 时从 BaoStock 刷新缓存。"""
-        return load_members(index=index, refresh=refresh)
+    def members(self, *, index: str = "hs300") -> pd.DataFrame:
+        """读取缓存的指数成分名单。"""
+        return load_members(index=index)
 
     def prices(
         self,

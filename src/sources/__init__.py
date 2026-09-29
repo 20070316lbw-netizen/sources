@@ -28,6 +28,7 @@ A 股底层函数仍可通过 `sources.cn` 使用; 新组合接口在 `sources.a
 from __future__ import annotations
 
 from sources.ashare import DailyAShare, HourAShare
+from sources.ashare.cache import update_members as update_ashare_members
 from sources.constituents import get_sp500_constituents
 from sources.constituents_changelog import (
     get_all_historical_sp500_tickers,
@@ -41,6 +42,8 @@ from sources.sp500 import DailySp500, HourSp500
 from sources.sp500 import constituents as constituents
 from sources.sp500 import prices as prices
 from sources.sp500 import riskfree as riskfree
+from sources.sp500.cache import update_members as update_sp500_members
+from sources.sp500.calendar import get_trade_calendar as get_sp500_trade_calendar
 
 __all__ = [
     "DailyAShare",
@@ -53,5 +56,8 @@ __all__ = [
     "get_risk_free_rate",
     "get_sp500_changelog",
     "get_sp500_constituents",
+    "get_sp500_trade_calendar",
+    "update_ashare_members",
     "update_cache_from_web",
+    "update_sp500_members",
 ]
