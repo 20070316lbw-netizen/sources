@@ -1,8 +1,8 @@
 """A 股日频数据组合接口。"""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Sequence
 
 import pandas as pd
 

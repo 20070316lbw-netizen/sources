@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 
@@ -28,7 +28,7 @@ class DailySp500:
     ) -> pd.DataFrame:
         """抓取日线行情; 未传 start 时默认请求最近十年。"""
         symbols = tickers if tickers is not None else self.members()["ticker"].tolist()
-        start_date = start or (pd.Timestamp.today().date() - timedelta(days=3652))
+        start_date = start or (pd.Timestamp.today().normalize() - pd.DateOffset(years=10))
         return get_prices(symbols, start=start_date, end=end, interval="1d")
 
     def risk_free_rate(

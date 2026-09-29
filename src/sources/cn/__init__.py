@@ -18,7 +18,7 @@ BaoStock 是进程级全局会话, 这些函数各自会登录/登出; 批量调
 """
 from __future__ import annotations
 
-from sources.ashare import _baostock
+from sources.ashare import _baostock as _baostock
 from sources.ashare._baostock import BaostockError, session
 from sources.ashare.calendar import get_cn_trade_calendar
 from sources.ashare.codes import normalize_ticker

@@ -38,6 +38,9 @@ from sources.constituents_changelog import (
 from sources.prices import get_prices
 from sources.riskfree import get_risk_free_rate
 from sources.sp500 import DailySp500, HourSp500
+from sources.sp500 import constituents as constituents
+from sources.sp500 import prices as prices
+from sources.sp500 import riskfree as riskfree
 
 __all__ = [
     "DailyAShare",
