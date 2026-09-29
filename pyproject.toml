@@ -1,6 +1,6 @@
 [project]
 name = "sources"
-version = "0.1.0"
+version = "0.1.1"
 description = "量化数据抓取包: S&P 500 成分股 / 行情 / SEC 基本面(点时)及 ROE 计算; A 股(BaoStock)日线 / 指数成分 / 交易日历"
 readme = "README.md"
 requires-python = ">=3.12"
