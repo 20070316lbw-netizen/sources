@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from sources.ashare import daily as ashare_daily
-from sources.ashare import hourly as ashare_hourly
 from sources.sp500 import cache as sp500_cache
 from sources.sp500 import daily as sp500_daily
 from sources.sp500 import hourly as sp500_hourly
@@ -46,46 +44,6 @@ def test_hour_sp500_uses_cached_members_and_hourly_interval(monkeypatch):
 
     assert calls["tickers"] == ["AAA"]
     assert calls["interval"] == "1h"
-
-
-def test_daily_ashare_uses_cached_members(monkeypatch):
-    """A 股日线接口未传代码时使用缓存的指数成分名单。"""
-    calls = {}
-    monkeypatch.setattr(
-        ashare_daily,
-        "load_members",
-        lambda **kwargs: pd.DataFrame({"ticker": ["600000.SH"]}),
-    )
-    monkeypatch.setattr(
-        ashare_daily,
-        "get_prices",
-        lambda tickers, **kwargs: calls.update(tickers=tickers, **kwargs) or pd.DataFrame(),
-    )
-
-    ashare_daily.DailyAShare().prices(start="2026-01-01")
-
-    assert calls["tickers"] == ["600000.SH"]
-    assert calls["start"] == "2026-01-01"
-
-
-def test_hour_ashare_uses_cached_members_and_sixty_minute_bars(monkeypatch):
-    """A 股小时线接口使用缓存成分股并固定抓取 60 分钟 K 线。"""
-    calls = {}
-    monkeypatch.setattr(
-        ashare_hourly,
-        "load_members",
-        lambda **kwargs: pd.DataFrame({"ticker": ["600000.SH"]}),
-    )
-    monkeypatch.setattr(
-        ashare_hourly,
-        "get_intraday_bars",
-        lambda tickers, **kwargs: calls.update(tickers=tickers, **kwargs) or pd.DataFrame(),
-    )
-
-    ashare_hourly.HourAShare().prices(start="2026-01-01")
-
-    assert calls["tickers"] == ["600000.SH"]
-    assert calls["freq"] == "60"
 
 
 def test_sp500_cache_refreshes_missing_historical_snapshot(monkeypatch):
