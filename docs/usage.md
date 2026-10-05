@@ -18,7 +18,7 @@
 uv add "git+https://github.com/20070316lbw-netizen/sources.git"
 
 # 推荐: 装一个打好 tag 的版本, 避免上游改动的影响
-uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.1.0"
+uv add "git+https://github.com/20070316lbw-netizen/sources.git@v0.2.0"
 ```
 
 ## 快速开始

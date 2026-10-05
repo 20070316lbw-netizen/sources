@@ -1,8 +1,12 @@
 # sources
 
-`sources` 是一个量化数据抓取包，提供 S&P 500 的日频、小时频行情接口，以及成员名单、交易日历和相关市场数据组件。当前版本为 **0.1.1**。
+`sources` 是一个量化数据抓取包，提供 S&P 500 的日频、小时频行情接口，以及成员名单、交易日历和相关市场数据组件。当前版本为 **0.2.0**。
 
-> 本分支已移除 A 股(BaoStock)相关的抓取接口与组合类，只保留 S&P 500 / SEC / FRED 数据源。
+## 0.2.0
+
+- 移除 A 股(BaoStock)相关的抓取接口与组合类(`DailyAShare`、`HourAShare`、`sources.cn`、`sources.ashare`)。
+- 去掉 `baostock` 依赖，只保留 S&P 500 / SEC / FRED 数据源。
+- 保留 `DailySp500`、`HourSp500` 组合接口、S&P 500 交易日历和 `update_sp500_members()`。
 
 ## 0.1.1
 
@@ -13,7 +17,7 @@
 ## 安装
 
 ```bash
-uv add "sources @ git+https://github.com/20070316lbw-netizen/sources.git@v0.1.1"
+uv add "sources @ git+https://github.com/20070316lbw-netizen/sources.git@v0.2.0"
 ```
 
 ## 快速开始
@@ -70,4 +74,4 @@ uv run pytest
 uv run ruff check .
 ```
 
-0.1.1 发布前检查：全套 90 项测试通过，Ruff 检查通过。2026-09-29 对成员名单更新、交易日历、日线/小时线、FRED 利率和 SEC 基本面做了短区间真实调用，均成功返回数据。
+0.2.0 检查：全套 90 项测试通过，Ruff 检查通过。本次只删除 A 股相关代码，S&P 500 / SEC / FRED 路径未改动(0.1.1 发布时对成员名单更新、交易日历、日线/小时线、FRED 利率和 SEC 基本面做过短区间真实调用，结论仍适用)。
