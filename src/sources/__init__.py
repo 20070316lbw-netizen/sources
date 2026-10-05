@@ -6,7 +6,6 @@
 
 公开 API:
     DailySp500 / HourSp500           -- S&P 500 日频和小时频组合接口
-    DailyAShare / HourAShare         -- A 股日频和小时频组合接口
     get_sp500_constituents           -- S&P 500 当前成分股 (数据源: Wikipedia)
     get_prices                       -- 历史行情 (数据源: yfinance)
     get_risk_free_rate               -- 无风险利率 (数据源: FRED, 通过 pandas-datareader)
@@ -22,13 +21,9 @@
 
 点时反推相关的函数依赖本地缓存, 首次使用需要先跑一次 update_cache_from_web();
 缓存目录可用环境变量 SOURCES_DATA_DIR 指定。
-
-A 股底层函数仍可通过 `sources.cn` 使用; 新组合接口在 `sources.ashare`。
 """
 from __future__ import annotations
 
-from sources.ashare import DailyAShare, HourAShare
-from sources.ashare.cache import update_members as update_ashare_members
 from sources.constituents import get_sp500_constituents
 from sources.constituents_changelog import (
     get_all_historical_sp500_tickers,
@@ -46,9 +41,7 @@ from sources.sp500.cache import update_members as update_sp500_members
 from sources.sp500.calendar import get_trade_calendar as get_sp500_trade_calendar
 
 __all__ = [
-    "DailyAShare",
     "DailySp500",
-    "HourAShare",
     "HourSp500",
     "get_all_historical_sp500_tickers",
     "get_historical_sp500_constituents",
@@ -57,7 +50,6 @@ __all__ = [
     "get_sp500_changelog",
     "get_sp500_constituents",
     "get_sp500_trade_calendar",
-    "update_ashare_members",
     "update_cache_from_web",
     "update_sp500_members",
 ]

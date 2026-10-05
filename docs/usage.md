@@ -119,42 +119,6 @@ get_sp500_changelog("2020-01-01", "2023-12-31")      # 区间内的增删明细(
 较高, 时间越久远偏差越大。要做严肃的长周期回测, 该换 CRSP 之类的正式成分股
 历史库。
 
-### A 股(沪深300 日线, 数据源 BaoStock)
-
-```python
-from sources.cn import (
-    get_cn_daily_bars,
-    get_cn_index_members,
-    get_cn_index_members_history,
-    get_cn_prices,
-    get_cn_stock_basic,
-    get_cn_trade_calendar,
-    session,
-)
-
-hs300 = get_cn_index_members("hs300", "2024-07-01")          # 某天的成分快照
-history = get_cn_index_members_history("hs300", "2015-01-01") # 月度快照拼成的历史成分
-
-with session():  # 批量调用时只登录一次 BaoStock
-    tickers = hs300["ticker"].tolist()                        # ['000001.SZ', ..., '600519.SH']
-    prices = get_cn_prices(tickers, start="2020-01-01")      # 列与 get_prices 相同
-    bars = get_cn_daily_bars(tickers, start="2020-01-01")    # 另含停牌/ST/成交额等
-    calendar = get_cn_trade_calendar("2015-01-01")           # [date, is_open]
-    basic = get_cn_stock_basic()                              # 上市/退市日期, 含已退市
-```
-
-约定:
-
-- 代码统一为 `600519.SH` / `000001.SZ` / `430047.BJ`; 入参也接受 `sh.600519`、
-  `600519`(按首位推断交易所; 指数代码请显式带后缀)。
-- `close` 是**不复权**价, `adj_close` 是**后复权**价。选后复权是因为它的历史值
-  不会随新的除权而变化, 增量入库安全; 算出的收益率与前复权一致。
-- A 股函数的 `end` 是**闭区间**(含当天), 与 BaoStock、liudb 读取口径一致;
-  美股 `get_prices` 的 `end` 沿用 yfinance 的开区间。
-- 停牌日保留(`is_suspended=True`, close 等于前收, volume 为 0), 方便下游构造
-  可交易掩码。volume 单位为股, amount 为元。
-- BaoStock 是进程级全局会话, **不是线程安全的**, 不要多线程并发调用。
-
 ## 环境变量
 
 SEC 要求所有 sec.gov 请求在 User-Agent 里带上调用方身份(名字 + 邮箱)。默认使用
@@ -172,12 +136,6 @@ export EDGAR_IDENTITY="Your Name your@email.com"
 export SOURCES_DATA_DIR="$HOME/.cache/sources"
 ```
 
-A 股部分默认匿名登录 BaoStock。如果申请了 API Key, 设置后会在登录前自动带上:
-
-```bash
-export BAOSTOCK_API_KEY="bs-..."
-```
-
 ## 各数据源
 
 | 模块 | 数据源 | 函数 | 备注 |
@@ -188,11 +146,6 @@ export BAOSTOCK_API_KEY="bs-..."
 | `riskfree` | FRED (pandas-datareader) | `get_risk_free_rate(start, end)` | 默认抓一个月期国债利率(`DGS1MO`)，年化百分比原始口径，可通过 `series` 参数换成其他 FRED 序列 |
 | `sec` | SEC XBRL companyfacts | `get_fundamentals(ticker, fields)` / `get_fundamentals_batch(...)` / `get_company_facts(...)` | 标准化基本面长表, 带申报日期, 供 liudb 做点时数据 |
 | `roe` | SEC XBRL companyfacts | `get_roe(ticker, years=1)` / `get_roe_batch()` | 基于 `sources.sec`; 默认计算 `first_50.py` 中的 50 只股票；批量模式下单只失败不会中断其余股票 |
-| `cn.prices` | BaoStock | `get_cn_prices(tickers, start, end)` / `get_cn_daily_bars(...)` | A 股日线; 前者列同 `get_prices`, 后者多出停牌/ST/成交额/换手/涨跌幅 |
-| `cn.intraday` | BaoStock | `get_cn_intraday_bars(tickers, start, end, freq="30")` | A 股分钟线(5/15/30/60), `ts` 为 bar 结束时间; 个股 2020 年起, ETF 多为 2026 年起, 指数无 |
-| `cn.index_members` | BaoStock | `get_cn_index_members(index, date)` / `get_cn_index_members_history(...)` | 指数成分快照, 目前只支持沪深300 |
-| `cn.trade_calendar` | BaoStock | `get_cn_trade_calendar(start, end)` | A 股交易日历 |
-| `cn.stock_basic` | BaoStock | `get_cn_stock_basic(tickers=None)` | 证券基本资料, 含上市/退市日期 |
 
 ## ROE
 
